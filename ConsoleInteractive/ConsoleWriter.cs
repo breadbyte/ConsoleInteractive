@@ -17,8 +17,8 @@ namespace ConsoleInteractive {
                 var cursorLeftPrevious = Console.CursorLeft;
 
                 InternalContext.ClearVisibleUserInput();
-                Console.Write(value);
-                Console.SetCursorPosition(0, Console.CursorTop += 1);
+                Console.Write(value + "\n");
+                Console.SetCursorPosition(0, Console.CursorTop);
                 Console.Write(InternalContext.UserInputBuffer);
                 Console.SetCursorPosition(cursorLeftPrevious, Console.CursorTop);
             }
