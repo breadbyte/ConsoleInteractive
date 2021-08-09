@@ -35,8 +35,6 @@ namespace ConsoleInteractive {
                 
                 token.ThrowIfCancellationRequested();
                 
-                var cursorPos = Console.CursorLeft;
-
                 switch (k.Key) {
                     case ConsoleKey.Enter:
                         token.ThrowIfCancellationRequested();
@@ -61,32 +59,34 @@ namespace ConsoleInteractive {
                         break;
                     case ConsoleKey.Backspace:
                         token.ThrowIfCancellationRequested();
-                        if (cursorPos == 0)
+                        if (Console.CursorLeft == 0)
                             break;
 
                         lock (InternalContext.WriteLock) {
+                            var prevPos = Console.CursorLeft;
                             Console.CursorVisible = false;
-                            InternalContext.UserInputBuffer.Remove(cursorPos - 1, 1);
+                            InternalContext.UserInputBuffer.Remove(Console.CursorLeft - 1, 1);
                             Console.Write("\b \b");
                             Console.Write(InternalContext.UserInputBuffer.ToString()[Console.CursorLeft..] + " ");
 
-                            Console.SetCursorPosition(cursorPos - 1, Console.CursorTop);
+                            Console.SetCursorPosition(prevPos - 1, Console.CursorTop);
                             Console.CursorVisible = true;
                         }
 
                         break;
                     case ConsoleKey.Delete:
                         token.ThrowIfCancellationRequested();
-                        if (cursorPos == InternalContext.UserInputBuffer.Length)
+                        if (Console.CursorLeft == InternalContext.UserInputBuffer.Length)
                             break;
                         
                         lock (InternalContext.WriteLock) {
+                            var prevPos = Console.CursorLeft;
                             Console.CursorVisible = false;
 
-                            InternalContext.UserInputBuffer.Remove(cursorPos, 1);
+                            InternalContext.UserInputBuffer.Remove(Console.CursorLeft, 1);
                             Console.Write(InternalContext.UserInputBuffer.ToString()[Console.CursorLeft..] + " ");
 
-                            Console.SetCursorPosition(cursorPos, Console.CursorTop);
+                            Console.SetCursorPosition(prevPos, Console.CursorTop);
                             Console.CursorVisible = true;
                         }
                         break;
@@ -149,10 +149,10 @@ namespace ConsoleInteractive {
 
                         lock (InternalContext.WriteLock) {
                             Console.CursorVisible = false;
-                            InternalContext.UserInputBuffer.Insert(cursorPos, k.KeyChar);
-                            Console.Write(InternalContext.UserInputBuffer.ToString()[cursorPos..]);
+                            InternalContext.UserInputBuffer.Insert(Console.CursorLeft, k.KeyChar);
+                            Console.Write(InternalContext.UserInputBuffer.ToString()[Console.CursorLeft..]);
 
-                            Console.SetCursorPosition(cursorPos + 1, Console.CursorTop);
+                            Console.SetCursorPosition(Console.CursorLeft, Console.CursorTop);
 
                             Console.CursorVisible = true;
                         }
