@@ -36,15 +36,69 @@ namespace ConsoleInteractiveDemo {
                 ConsoleWriter.WriteLine("[T2] 6 Filler...");
                 ConsoleWriter.WriteLine("[T2] 7 Filler...");
             }));
+
+            var tF = new Thread(new ThreadStart(() => {
+                ConsoleWriter.WriteLineFormatted("[T3] ---");
+                ConsoleWriter.WriteLineFormatted("[T3] §0Black Text");
+                ConsoleWriter.WriteLineFormatted("[T3] 1 ---");
+                ConsoleWriter.WriteLineFormatted("[T3] §1Dark Blue Text");
+                ConsoleWriter.WriteLineFormatted("[T3] 2 ---");
+                ConsoleWriter.WriteLineFormatted("[T3] §2Dark Green Text");
+                ConsoleWriter.WriteLineFormatted("[T3] 3 ---");
+                ConsoleWriter.WriteLineFormatted("[T3] §3Dark Aqua Text");
+                ConsoleWriter.WriteLineFormatted("[T3] 4 ---");
+                ConsoleWriter.WriteLineFormatted("[T3] §4Dark Red Text");
+                ConsoleWriter.WriteLineFormatted("[T3] 5 ---");
+                ConsoleWriter.WriteLineFormatted("[T3] §5Dark Purple Text");
+                ConsoleWriter.WriteLineFormatted("[T3] 6 ---");
+                ConsoleWriter.WriteLineFormatted("[T3] §6Gold Text");
+                ConsoleWriter.WriteLineFormatted("[T3] 7 ---");
+                ConsoleWriter.WriteLineFormatted("[T3] §7Gray Text");
+                ConsoleWriter.WriteLineFormatted("[T3] 8 ---");
+                ConsoleWriter.WriteLineFormatted("[T3] §8Dark Gray Text");
+                ConsoleWriter.WriteLineFormatted("[T3] 9 ---");
+                ConsoleWriter.WriteLineFormatted("[T3] §9Blue Text");
+                ConsoleWriter.WriteLineFormatted("[T3] a ---");
+                ConsoleWriter.WriteLineFormatted("[T3] §aGreen Text");
+                ConsoleWriter.WriteLineFormatted("[T3] b ---");
+                ConsoleWriter.WriteLineFormatted("[T3] §bAqua Text");
+                ConsoleWriter.WriteLineFormatted("[T3] c ---");
+                ConsoleWriter.WriteLineFormatted("[T3] §cRed Text");
+                ConsoleWriter.WriteLineFormatted("[T3] d ---");
+                ConsoleWriter.WriteLineFormatted("[T3] §dLight Purple Text");
+                ConsoleWriter.WriteLineFormatted("[T3] e ---");
+                ConsoleWriter.WriteLineFormatted("[T3] §eYellow Text");
+                ConsoleWriter.WriteLineFormatted("[T3] f ---");
+                ConsoleWriter.WriteLineFormatted("[T3] §fWhite Text");
+                ConsoleWriter.WriteLineFormatted("[T3] k ---");
+                ConsoleWriter.WriteLineFormatted("[T3] §kObfuscated Text§r(Obfuscated)");
+                ConsoleWriter.WriteLineFormatted("[T3] l ---");
+                ConsoleWriter.WriteLineFormatted("[T3] §lBold Text");
+                ConsoleWriter.WriteLineFormatted("[T3] m ---");
+                ConsoleWriter.WriteLineFormatted("[T3] §mStrikethrough Text");
+                ConsoleWriter.WriteLineFormatted("[T3] n ---");
+                ConsoleWriter.WriteLineFormatted("[T3] §nUnderline Text");
+                ConsoleWriter.WriteLineFormatted("[T3] o ---");
+                ConsoleWriter.WriteLineFormatted("[T3] §oItalic Text");
+                ConsoleWriter.WriteLineFormatted("[T3] r ---");
+                ConsoleWriter.WriteLineFormatted("[T3] §k§rTesting§b§rThis text should not have effects!");
+                ConsoleWriter.WriteLineFormatted("[T3] mixed ---");
+                ConsoleWriter.WriteLineFormatted("[T3] §aText §cwith §bMixed §1C§2o§3l§4o§5r§6s§a!");
+                ConsoleWriter.WriteLine         ("[T3] Truth:  §ktesting1§ktesting2§rtesting3§k§r");
+                ConsoleWriter.WriteLineFormatted("[T3] Actual: §ktesting1§ktesting2§rtesting3§k§r");
+                ConsoleWriter.WriteLine         ("[T3] Truth:  testing4§ktesting5§rtesting6§k§rtestafter §ka§ke§ri§ro§ku§r  textafter");
+                ConsoleWriter.WriteLineFormatted("[T3] Actual: testing4§k§m§etesting5§rtesting6§k§rtestafter §ka§ke§ri§ro§ku§r  textafter");
+            }));
+            t1.Start();
+            t2.Start();
+            tF.Start();
+            
             ConsoleReader.BeginReadThread(cts.Token);
             
             ConsoleReader.MessageReceived += (sender, s) => {
                 if (s.Equals("cancel"))
                     cts.Cancel();
             };
-
-            t1.Start();
-            t2.Start();
         }
     }
 }
