@@ -6,6 +6,8 @@ namespace ConsoleInteractiveDemo {
     class Program {
         static void Main(string[] args) {
             CancellationTokenSource cts = new CancellationTokenSource();
+            ConsoleWriter.SetWindowsConsoleAnsi();
+            
             var t1 = new Thread(new ThreadStart(() => {
                 ConsoleWriter.WriteLine("[T1] Hello World!");
                 Thread.Sleep(5000);

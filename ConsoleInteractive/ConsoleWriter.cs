@@ -1,13 +1,22 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using PInvoke;
 
 namespace ConsoleInteractive {
     public static class ConsoleWriter {
+        public static void SetWindowsConsoleAnsi() {
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) {
+                Kernel32.GetConsoleMode(Kernel32.GetStdHandle(Kernel32.StdHandle.STD_OUTPUT_HANDLE), out var cModes);
+                Kernel32.SetConsoleMode(Kernel32.GetStdHandle(Kernel32.StdHandle.STD_OUTPUT_HANDLE), cModes | Kernel32.ConsoleBufferModes.ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+            }
+        }
+    
         public static void WriteLine(string value) {
             InternalWriter.WriteLine(value);
         }
