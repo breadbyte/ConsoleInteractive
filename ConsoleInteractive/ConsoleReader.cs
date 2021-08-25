@@ -30,11 +30,16 @@ namespace ConsoleInteractive {
             while (!token.IsCancellationRequested) {
                 token.ThrowIfCancellationRequested();
 
+                while (Console.KeyAvailable == false) {
+                    token.ThrowIfCancellationRequested();
+                    continue;
+                }
+
                 ConsoleKeyInfo k;
                 k = Console.ReadKey(true);
-                
+
                 token.ThrowIfCancellationRequested();
-                
+
                 switch (k.Key) {
                     case ConsoleKey.Enter:
                         token.ThrowIfCancellationRequested();
@@ -43,7 +48,7 @@ namespace ConsoleInteractive {
                             InternalContext.ClearVisibleUserInput();
 
                             MessageReceived?.Invoke(null, InternalContext.UserInputBuffer.ToString());
-                            
+
                             /*
                              * The user can call cancellation after a command on enter.
                              * This helps us safely exit the reader thread.
@@ -78,7 +83,7 @@ namespace ConsoleInteractive {
                         token.ThrowIfCancellationRequested();
                         if (Console.CursorLeft == InternalContext.UserInputBuffer.Length)
                             break;
-                        
+
                         lock (InternalContext.WriteLock) {
                             var prevPos = Console.CursorLeft;
                             Console.CursorVisible = false;
@@ -89,15 +94,16 @@ namespace ConsoleInteractive {
                             Console.SetCursorPosition(prevPos, Console.CursorTop);
                             Console.CursorVisible = true;
                         }
+
                         break;
                     case ConsoleKey.End:
                         token.ThrowIfCancellationRequested();
-                        lock (InternalContext.WriteLock) 
+                        lock (InternalContext.WriteLock)
                             Console.CursorLeft = InternalContext.UserInputBuffer.Length;
                         break;
                     case ConsoleKey.Home:
                         token.ThrowIfCancellationRequested();
-                        lock (InternalContext.WriteLock) 
+                        lock (InternalContext.WriteLock)
                             Console.CursorLeft = 0;
                         break;
                     case ConsoleKey.LeftArrow:
@@ -108,13 +114,15 @@ namespace ConsoleInteractive {
                         lock (InternalContext.WriteLock) {
 
                             if (k.Modifiers.HasFlag(ConsoleModifiers.Control)) {
-                                var cts = InternalContext.UserInputBuffer.ToString()[..(Console.CursorLeft - 1 < 0 ? 0 : Console.CursorLeft - 1)];
+                                var cts = InternalContext.UserInputBuffer.ToString()[
+                                    ..(Console.CursorLeft - 1 < 0 ? 0 : Console.CursorLeft - 1)];
                                 Console.SetCursorPosition((cts.LastIndexOf(' ') + 1), Console.CursorTop);
                                 break;
                             }
 
                             Console.SetCursorPosition(Console.CursorLeft - 1, Console.CursorTop);
                         }
+
                         break;
                     case ConsoleKey.RightArrow:
                         token.ThrowIfCancellationRequested();
@@ -126,17 +134,20 @@ namespace ConsoleInteractive {
                                 var cts = InternalContext.UserInputBuffer.ToString()[(Console.CursorLeft)..];
                                 var indexOf = cts.IndexOf(' ');
                                 Console.SetCursorPosition(
-                                    indexOf == -1 ? InternalContext.UserInputBuffer.Length : indexOf + 1 + Console.CursorLeft,
+                                    indexOf == -1
+                                        ? InternalContext.UserInputBuffer.Length
+                                        : indexOf + 1 + Console.CursorLeft,
                                     Console.CursorTop);
                                 break;
                             }
 
                             Console.SetCursorPosition(Console.CursorLeft + 1, Console.CursorTop);
                         }
+
                         break;
                     default:
                         token.ThrowIfCancellationRequested();
-                        
+
                         // For special events where the keypress actually sends a keycode.
                         switch (k.Key) {
                             case ConsoleKey.Tab:
@@ -156,6 +167,7 @@ namespace ConsoleInteractive {
 
                             Console.CursorVisible = true;
                         }
+
                         break;
                 }
             }

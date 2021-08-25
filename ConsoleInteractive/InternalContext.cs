@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace ConsoleInteractive {
     internal static class InternalContext {
         internal static object WriteLock = new();
         internal static StringBuilder UserInputBuffer = new();
+        internal static Regex FormatRegex = new Regex("(§[0-9a-fk-or])((?:[^§]|§[^0-9a-fk-or])*)", RegexOptions.Compiled);
 
         /// <summary>
         /// Clears the visible user input but does not clear the internal buffer.

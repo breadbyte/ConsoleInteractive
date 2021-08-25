@@ -16,4 +16,8 @@
       <None Remove="ConsoleInteractiveDemo\**" />
     </ItemGroup>
 
+    <ItemGroup>
+      <PackageReference Include="PInvoke.Kernel32" Version="0.7.104" />
+    </ItemGroup>
+
 </Project>
