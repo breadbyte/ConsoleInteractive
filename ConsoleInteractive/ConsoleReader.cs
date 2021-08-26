@@ -92,26 +92,30 @@ namespace ConsoleInteractive {
                             break;
 
                         lock (InternalContext.WriteLock) {
-                            var prevPos = Console.CursorLeft;
+                            var prevPos = InternalContext.CursorLeftPos;
                             Console.CursorVisible = false;
 
-                            InternalContext.UserInputBuffer.Remove(Console.CursorLeft, 1);
-                            Console.Write(InternalContext.UserInputBuffer.ToString()[Console.CursorLeft..] + " ");
+                            InternalContext.UserInputBuffer.Remove(InternalContext.CursorLeftPos, 1);
+                            Console.Write(InternalContext.UserInputBuffer.ToString()[InternalContext.CursorLeftPos..] + " ");
 
-                            Console.SetCursorPosition(prevPos, Console.CursorTop);
+                            Console.SetCursorPosition(prevPos, InternalContext.CursorTopPos);
                             Console.CursorVisible = true;
                         }
 
                         break;
                     case ConsoleKey.End:
                         token.ThrowIfCancellationRequested();
-                        lock (InternalContext.WriteLock)
+                        lock (InternalContext.WriteLock) {
                             Console.CursorLeft = InternalContext.UserInputBuffer.Length;
+                            InternalContext.CursorLeftPos = InternalContext.UserInputBuffer.Length;
+                        }
                         break;
                     case ConsoleKey.Home:
                         token.ThrowIfCancellationRequested();
-                        lock (InternalContext.WriteLock)
+                        lock (InternalContext.WriteLock) {
                             Console.CursorLeft = 0;
+                            Interlocked.Exchange(ref InternalContext.CursorLeftPos, 0);
+                        }
                         break;
                     case ConsoleKey.LeftArrow:
                         token.ThrowIfCancellationRequested();
