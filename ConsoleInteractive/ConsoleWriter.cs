@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -30,13 +31,14 @@ namespace ConsoleInteractive {
     internal static class InternalWriter {
         private static void Write(object? value) {
             lock (InternalContext.WriteLock) {
-                var cursorLeftPrevious = Console.CursorLeft;
+                var cursorLeftPrevious = InternalContext.CursorLeftPos;
 
                 InternalContext.ClearVisibleUserInput();
-                Console.Write(value + "\n");
-                Console.SetCursorPosition(0, Console.CursorTop);
-                Console.Write(InternalContext.UserInputBuffer);
-                Console.SetCursorPosition(cursorLeftPrevious, Console.CursorTop);
+                Console.WriteLine(value);
+                InternalContext.IncrementTopPos();
+                Console.Write(InternalContext.UserInputBuffer.ToString());
+                Console.SetCursorPosition(cursorLeftPrevious, InternalContext.CursorTopPos);
+                InternalContext.CursorLeftPos = cursorLeftPrevious;
             }
         }
 
