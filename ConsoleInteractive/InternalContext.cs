@@ -31,16 +31,22 @@ namespace ConsoleInteractive {
         }
 
         internal static void IncrementLeftPos() {
-            CursorLeftPos = CursorLeftPos + 1;
+            if (CursorLeftPosLimit <= CursorLeftPos + 1)
+                return;
+            CursorLeftPos = Interlocked.Increment(ref CursorLeftPos);
         }
 
         internal static void DecrementLeftPos() {
-            CursorLeftPos = CursorLeftPos - 1;
+            if (0 >= CursorLeftPos - 1)
+                return;
+            CursorLeftPos = Interlocked.Decrement(ref CursorLeftPos);
 
         }
 
         internal static void IncrementTopPos() {
-            CursorTopPos = CursorTopPos + 1;
+            if (CursorTopPosLimit <= CursorTopPos + 1)
+                return;
+            CursorTopPos = Interlocked.Increment(ref CursorTopPos);
         }
     }
 }
