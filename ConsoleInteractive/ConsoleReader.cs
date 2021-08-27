@@ -101,7 +101,7 @@ namespace ConsoleInteractive {
                             InternalContext.UserInputBuffer.Remove(InternalContext.CursorLeftPos, 1);
                             Console.Write(InternalContext.UserInputBuffer.ToString()[InternalContext.CursorLeftPos..] + " ");
 
-                            Console.SetCursorPosition(prevPos, InternalContext.CursorTopPos);
+                            InternalContext.SetCursorPosition(prevPos);
                             Console.CursorVisible = true;
                         }
 
@@ -109,15 +109,13 @@ namespace ConsoleInteractive {
                     case ConsoleKey.End:
                         token.ThrowIfCancellationRequested();
                         lock (InternalContext.WriteLock) {
-                            Console.CursorLeft = InternalContext.UserInputBuffer.Length;
-                            InternalContext.CursorLeftPos = InternalContext.UserInputBuffer.Length;
+                            InternalContext.SetCursorPosition(InternalContext.UserInputBuffer.Length);
                         }
                         break;
                     case ConsoleKey.Home:
                         token.ThrowIfCancellationRequested();
                         lock (InternalContext.WriteLock) {
-                            Console.CursorLeft = 0;
-                            Interlocked.Exchange(ref InternalContext.CursorLeftPos, 0);
+                            InternalContext.SetCursorPosition(0);
                         }
                         break;
                     case ConsoleKey.LeftArrow:
@@ -128,6 +126,7 @@ namespace ConsoleInteractive {
                         InternalContext.DecrementLeftPos();
 
                         lock (InternalContext.WriteLock) {
+                            // todo fixme
                             if (k.Modifiers.HasFlag(ConsoleModifiers.Control)) {
                                 var cts = InternalContext.UserInputBuffer.ToString()[..(InternalContext.CursorLeftPos - 1 < 0 ? 0 : InternalContext.CursorLeftPos - 1)];
                                 Console.SetCursorPosition((cts.LastIndexOf(' ') + 1), InternalContext.CursorTopPos);
@@ -144,6 +143,7 @@ namespace ConsoleInteractive {
                         InternalContext.IncrementLeftPos();
 
                         lock (InternalContext.WriteLock) {
+                            // todo fixme
                             if (k.Modifiers.HasFlag(ConsoleModifiers.Control)) {
                                 var cts = InternalContext.UserInputBuffer.ToString()[InternalContext.CursorLeftPos..];
                                 var indexOf = cts.IndexOf(' ');

@@ -37,8 +37,7 @@ namespace ConsoleInteractive {
                 Console.WriteLine(value);
                 InternalContext.IncrementTopPos();
                 Console.Write(InternalContext.UserInputBuffer.ToString());
-                Console.SetCursorPosition(cursorLeftPrevious, InternalContext.CursorTopPos);
-                InternalContext.CursorLeftPos = cursorLeftPrevious;
+                InternalContext.SetCursorPosition(cursorLeftPrevious);
             }
         }
 
