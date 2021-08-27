@@ -72,16 +72,19 @@ namespace ConsoleInteractive {
                         token.ThrowIfCancellationRequested();
                         if (InternalContext.CursorLeftPos == 0)
                             break;
-
+                        
                         lock (InternalContext.WriteLock) {
-                            var prevPos = InternalContext.CursorLeftPos;
                             Console.CursorVisible = false;
-                            InternalContext.UserInputBuffer.Remove(InternalContext.CursorLeftPos - 1, 1);
+                            
+                            if (InternalContext.CursorLeftPos == 1)
+                                InternalContext.UserInputBuffer.Remove(0, 1);
+                            else
+                                InternalContext.UserInputBuffer.Remove(InternalContext.CursorLeftPos - 1, 1);
+                            
                             Console.Write("\b \b");
                             InternalContext.DecrementLeftPos();
-                            
-                            Console.Write(InternalContext.UserInputBuffer.ToString()[InternalContext.CursorLeftPos..] + " ");
-                            Console.SetCursorPosition(InternalContext.CursorLeftPos, InternalContext.CursorTopPos);
+
+                            Console.Write(InternalContext.UserInputBuffer.ToString()[InternalContext.CursorLeftPos..]);
                             Console.CursorVisible = true;
                         }
 
@@ -130,8 +133,6 @@ namespace ConsoleInteractive {
                                 Console.SetCursorPosition((cts.LastIndexOf(' ') + 1), InternalContext.CursorTopPos);
                                 break;
                             }
-
-                            Console.SetCursorPosition(InternalContext.CursorLeftPos, InternalContext.CursorTopPos);
                         }
 
                         break;
@@ -153,8 +154,6 @@ namespace ConsoleInteractive {
                                     Console.CursorTop);
                                 break;
                             }
-
-                            Console.SetCursorPosition(InternalContext.CursorLeftPos, Console.CursorTop);
                         }
 
                         break;
@@ -181,7 +180,6 @@ namespace ConsoleInteractive {
                             if (InternalContext.UserInputBuffer.Length > InternalContext.CursorLeftPos)
                                 Console.Write(InternalContext.UserInputBuffer.ToString()[InternalContext.CursorLeftPos..]);
 
-                            Console.SetCursorPosition(InternalContext.CursorLeftPos, InternalContext.CursorTopPos);
                             Console.CursorVisible = true;
                         }
                         break;
