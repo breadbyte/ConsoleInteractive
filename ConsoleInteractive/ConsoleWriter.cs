@@ -31,13 +31,12 @@ namespace ConsoleInteractive {
     internal static class InternalWriter {
         private static void Write(object? value) {
             lock (InternalContext.WriteLock) {
-                var cursorLeftPrevious = InternalContext.CursorLeftPos;
-
-                InternalContext.ClearVisibleUserInput();
+                var currentCursorPos = InternalContext.CursorLeftPos;
+                
+                ConsoleBuffer.ClearVisibleUserInput();
                 Console.WriteLine(value);
                 InternalContext.IncrementTopPos();
-                Console.Write(InternalContext.UserInputBuffer.ToString());
-                InternalContext.SetCursorPosition(cursorLeftPrevious);
+                ConsoleBuffer.RedrawInput(currentCursorPos);
             }
         }
 
