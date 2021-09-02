@@ -91,9 +91,9 @@ namespace ConsoleInteractiveDemo {
                 ConsoleWriter.WriteLine         ("[T3] Truth:  testing4§ktesting5§rtesting6§k§rtestafter §ka§ke§ri§ro§ku§r  textafter");
                 ConsoleWriter.WriteLineFormatted("[T3] Actual: testing4§k§m§etesting5§rtesting6§k§rtestafter §ka§ke§ri§ro§ku§r  textafter");
             }));
-            t1.Start();
-            t2.Start();
-            tF.Start();
+            //t1.Start();
+            //t2.Start();
+            //tF.Start();
             
             ConsoleReader.BeginReadThread(cts.Token);
             
