@@ -215,5 +215,26 @@ namespace ConsoleInteractive {
                 InternalContext.SetLeftCursorPosition(0);
             }
         }
+
+        internal static void MoveToStartBufferPosition() {
+            Interlocked.Exchange(ref CurrentBufferPos, 0);
+            Interlocked.Exchange(ref ConsoleOutputBeginPos, 0);
+            RedrawInput(0);
+        }
+
+        internal static void MoveToEndBufferPosition() {
+            if (UserInputBuffer.Length <= InternalContext.CursorLeftPosLimit) {
+                Interlocked.Exchange(ref CurrentBufferPos, UserInputBuffer.Length);
+                Interlocked.Exchange(ref ConsoleOutputBeginPos, 0);
+                Interlocked.Exchange(ref ConsoleOutputLength, UserInputBuffer.Length);
+                RedrawInput(UserInputBuffer.Length);
+                return;
+            }
+
+            var pos = UserInputBuffer.Length % InternalContext.CursorLeftPosLimit;
+            Interlocked.Exchange(ref CurrentBufferPos, UserInputBuffer.Length);
+            Interlocked.Exchange(ref ConsoleOutputBeginPos, pos + 1);
+            RedrawInput(ConsoleWriteLimit);
+        }
     }
 }

@@ -24,7 +24,7 @@ namespace ConsoleInteractive {
         /// <summary>
         /// Listens for keypresses and acts accordingly.
         /// </summary>
-        /// <param name="cancellationToken"></param>
+        /// <param name="cancellationToken">Exits from the key listener once cancelled.</param>
         private static void KeyListener(object cancellationToken) {
             CancellationToken token = (CancellationToken)cancellationToken!;
 
@@ -69,40 +69,35 @@ namespace ConsoleInteractive {
 
                         break;
                     case ConsoleKey.Backspace:
-                        //fixme
                         token.ThrowIfCancellationRequested();
-                        ConsoleWriter.WriteLine($"LP: {InternalContext.CursorLeftPos} | TP {InternalContext.CursorTopPos} | BP {ConsoleBuffer.CurrentBufferPos}"); // todo remove devel line
-                        if (InternalContext.CursorLeftPos == 0)
-                            break;
-                        ConsoleBuffer.RemoveBackward();
+                        lock (InternalContext.WriteLock) {
+                            ConsoleBuffer.RemoveBackward();
+                        }
+
                         break;
                     case ConsoleKey.Delete:
-                        //fixme
                         token.ThrowIfCancellationRequested();
-                        ConsoleWriter.WriteLine($"LP: {InternalContext.CursorLeftPos} | TP {InternalContext.CursorTopPos} | BP {ConsoleBuffer.CurrentBufferPos}"); // todo remove devel line
-                        if (Console.CursorLeft == ConsoleBuffer.UserInputBuffer.Length)
-                            break;
-                        ConsoleBuffer.RemoveForward();
+                        lock (InternalContext.WriteLock) {
+                            ConsoleBuffer.RemoveForward();
+                        }
+
                         break;
                     case ConsoleKey.End:
-                        // fixme
                         token.ThrowIfCancellationRequested();
 
                         lock (InternalContext.WriteLock) {
-                            InternalContext.SetLeftCursorPosition(ConsoleBuffer.UserInputBuffer.Length);
+                            ConsoleBuffer.MoveToEndBufferPosition();
                         }
                         break;
                     case ConsoleKey.Home:
-                        //fixme
                         token.ThrowIfCancellationRequested();
                         lock (InternalContext.WriteLock) {
-                            InternalContext.SetLeftCursorPosition(0);
+                            ConsoleBuffer.MoveToStartBufferPosition();
                         }
                         break;
                     case ConsoleKey.LeftArrow:
                         token.ThrowIfCancellationRequested();
                         ConsoleBuffer.MoveCursorBackward();
-                        ConsoleWriter.WriteLine($"LP: {InternalContext.CursorLeftPos} | TP {InternalContext.CursorTopPos} | BP {ConsoleBuffer.CurrentBufferPos}"); // todo remove devel line
 
                         // fixme
                         lock (InternalContext.WriteLock) {
@@ -117,7 +112,6 @@ namespace ConsoleInteractive {
                     case ConsoleKey.RightArrow:
                         token.ThrowIfCancellationRequested();
                         ConsoleBuffer.MoveCursorForward();
-                        ConsoleWriter.WriteLine($"LP: {InternalContext.CursorLeftPos} | TP {InternalContext.CursorTopPos} | BP {ConsoleBuffer.CurrentBufferPos}"); // todo remove devel line
 
                         // fixme
                         lock (InternalContext.WriteLock) {
@@ -137,19 +131,17 @@ namespace ConsoleInteractive {
                     default:
                         token.ThrowIfCancellationRequested();
 
-                        // For special events where the keypress actually sends a keycode.
-                        switch (k.Key) {
-                            case ConsoleKey.Tab:
-                                continue;
-                        }
-
                         // If the keypress doesn't map to any Unicode characters.
-                        if (k.KeyChar == '\0')
-                            break;
+                        switch (k.KeyChar) {
+                            case '\0':
+                            case '\t':
+                            case '\r':
+                            case '\n':
+                                break;
+                        }
 
                         lock (InternalContext.WriteLock) {
                             ConsoleBuffer.Insert(k.KeyChar);
-                            ConsoleWriter.WriteLine($"{k.KeyChar} | LP: {InternalContext.CursorLeftPos} | TP {InternalContext.CursorTopPos} | BP {ConsoleBuffer.CurrentBufferPos}"); // todo remove devel line
                         }
                         break;
                 }
