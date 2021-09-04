@@ -57,6 +57,10 @@ namespace ConsoleInteractive {
         private static volatile int ConsoleOutputLength = 0;
         private static volatile int ConsoleWriteLimit = InternalContext.CursorLeftPosLimit - 1;
         
+        /// <summary>
+        /// Inserts a character in the user input buffer.
+        /// </summary>
+        /// <param name="c">The character to insert.</param>
         internal static void Insert(char c) {
             // Insert at the current buffer pos.
             UserInputBuffer.Insert(CurrentBufferPos, c);
@@ -75,6 +79,10 @@ namespace ConsoleInteractive {
             RedrawInput(InternalContext.CursorLeftPos);
         }
 
+        /// <summary>
+        /// Redraws the current user input state.
+        /// </summary>
+        /// <param name="leftCursorPosition">The position the cursor was previously located.</param>
         internal static void RedrawInput(int leftCursorPosition) {
             Console.CursorVisible = false;
             DetermineCurrentInputPos();
@@ -84,6 +92,9 @@ namespace ConsoleInteractive {
             Console.CursorVisible = true;
         }
 
+        /// <summary>
+        /// Moves the input buffer forward by one char. Equivalent to pressing the right arrow key.
+        /// </summary>
         internal static void MoveCursorForward() {
             // If we're at the end of the buffer, do nothing.
             if (CurrentBufferPos == UserInputBuffer.Length)
@@ -107,6 +118,9 @@ namespace ConsoleInteractive {
             RedrawInput(InternalContext.CursorLeftPos);
         }
 
+        /// <summary>
+        /// Moves the input buffer backward by one char. Equivalent to pressing the left arrow key.
+        /// </summary>
         internal static void MoveCursorBackward() {
             // If we're at the beginning of the buffer, do nothing.
             if (CurrentBufferPos == 0)
@@ -126,6 +140,9 @@ namespace ConsoleInteractive {
             RedrawInput(InternalContext.CursorLeftPos);
         }
         
+        /// <summary>
+        /// Removes a char from the buffer 'forwards', equivalent to pressing the Delete key.
+        /// </summary>
         internal static void RemoveForward() {
             // If we're at the end of the buffer, do nothing.
             if (CurrentBufferPos >= UserInputBuffer.Length)
@@ -136,6 +153,9 @@ namespace ConsoleInteractive {
             RedrawInput(InternalContext.CursorLeftPos);
         }
 
+        /// <summary>
+        /// Removes a char from the buffer 'backwards', equivalent to pressing the Backspace key.
+        /// </summary>
         internal static void RemoveBackward() {
             // If we're at the start of the console, do nothing.
             if (CurrentBufferPos == 0)
@@ -154,6 +174,9 @@ namespace ConsoleInteractive {
             RedrawInput(InternalContext.CursorLeftPos);
         }
         
+        /// <summary>
+        /// Helper function to determine the current input position.
+        /// </summary>
         private static void DetermineCurrentInputPos() {
             // If we're at the beginning of the console
             if (UserInputBuffer.Length <= ConsoleWriteLimit) {
@@ -163,16 +186,23 @@ namespace ConsoleInteractive {
             }
         }
 
+        /// <summary>
+        /// Flushes the User Input Buffer.
+        /// </summary>
+        /// <returns>The string contained in the buffer.</returns>
         internal static string FlushBuffer() {
             ClearVisibleUserInput();
             Interlocked.Exchange(ref CurrentBufferPos, 0);
+            Interlocked.Exchange(ref ConsoleOutputBeginPos, 0);
+            Interlocked.Exchange(ref ConsoleOutputLength, 0);
             var retval = UserInputBuffer.ToString();
             UserInputBuffer.Clear();
             return retval;
         }
 
         /// <summary>
-        /// Clears the visible user input but does not clear the internal buffer.
+        /// Clears the visible user input.
+        /// Does not clear the internal buffer.
         /// </summary>
         internal static void ClearVisibleUserInput() {
             lock (InternalContext.WriteLock) {
