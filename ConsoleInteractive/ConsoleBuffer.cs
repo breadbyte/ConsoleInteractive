@@ -52,7 +52,7 @@ namespace ConsoleInteractive {
      */
     internal static class ConsoleBuffer {
         internal static StringBuilder UserInputBuffer = new();
-        internal static volatile int CurrentBufferPos = 0;
+        private static volatile int CurrentBufferPos = 0;
         private static volatile int ConsoleOutputBeginPos = 0;
         private static volatile int ConsoleOutputLength = 0;
         private static volatile int ConsoleWriteLimit = InternalContext.CursorLeftPosLimit - 1;
@@ -195,6 +195,7 @@ namespace ConsoleInteractive {
             Interlocked.Exchange(ref CurrentBufferPos, 0);
             Interlocked.Exchange(ref ConsoleOutputBeginPos, 0);
             Interlocked.Exchange(ref ConsoleOutputLength, 0);
+            Interlocked.Exchange(ref InternalContext.CursorLeftPos, 0);
             var retval = UserInputBuffer.ToString();
             UserInputBuffer.Clear();
             return retval;

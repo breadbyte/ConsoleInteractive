@@ -14,7 +14,7 @@ namespace ConsoleInteractive {
         /// <summary>
         /// Starts a new Console Reader thread.
         /// </summary>
-        /// <param name="cancellationToken"></param>
+        /// <param name="cancellationToken">Exits from the reader thread when cancelled.</param>
         public static void BeginReadThread(CancellationToken cancellationToken) {
             var t = new Thread(new ParameterizedThreadStart(KeyListener));
             t.Name = "ConsoleInteractive.ConsoleReader Reader Thread";
@@ -51,40 +51,33 @@ namespace ConsoleInteractive {
 
                         lock (InternalContext.WriteLock) {
                             ConsoleBuffer.ClearVisibleUserInput();
-
-                            MessageReceived?.Invoke(null, ConsoleBuffer.UserInputBuffer.ToString());
+                            var input = ConsoleBuffer.FlushBuffer();
+                            
+                            MessageReceived?.Invoke(null, input);
 
                             /*
                              * The user can call cancellation after a command on enter.
                              * This helps us safely exit the reader thread.
                              */
                             if (token.IsCancellationRequested) {
-                                ConsoleBuffer.UserInputBuffer.Clear();
-                                break;
+                                return;
                             }
-
-                            ConsoleBuffer.UserInputBuffer.Clear();
-                            Interlocked.Exchange(ref InternalContext.CursorLeftPos, 0);
                         }
-
                         break;
                     case ConsoleKey.Backspace:
                         token.ThrowIfCancellationRequested();
                         lock (InternalContext.WriteLock) {
                             ConsoleBuffer.RemoveBackward();
                         }
-
                         break;
                     case ConsoleKey.Delete:
                         token.ThrowIfCancellationRequested();
                         lock (InternalContext.WriteLock) {
                             ConsoleBuffer.RemoveForward();
                         }
-
                         break;
                     case ConsoleKey.End:
                         token.ThrowIfCancellationRequested();
-
                         lock (InternalContext.WriteLock) {
                             ConsoleBuffer.MoveToEndBufferPosition();
                         }
