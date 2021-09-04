@@ -11,7 +11,13 @@ using PInvoke;
 
 namespace ConsoleInteractive {
     public static class ConsoleWriter {
-        public static void SetWindowsConsoleAnsi() {
+
+        public static void Init() {
+            SetWindowsConsoleAnsi();
+            Console.Clear();
+        }
+
+        private static void SetWindowsConsoleAnsi() {
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) {
                 Kernel32.GetConsoleMode(Kernel32.GetStdHandle(Kernel32.StdHandle.STD_OUTPUT_HANDLE), out var cModes);
                 Kernel32.SetConsoleMode(Kernel32.GetStdHandle(Kernel32.StdHandle.STD_OUTPUT_HANDLE), cModes | Kernel32.ConsoleBufferModes.ENABLE_VIRTUAL_TERMINAL_PROCESSING);
