@@ -7,14 +7,31 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using ConsoleInteractive.Buffer;
 using PInvoke;
 
 namespace ConsoleInteractive {
     public static class ConsoleWriter {
 
-        public static void Init() {
+        public static void Init(InputMode inputMode) {
             SetWindowsConsoleAnsi();
             Console.Clear();
+
+            switch (inputMode) {
+                case InputMode.HorizontalInput:
+                    InternalContext.Buffer = new HorizontalBuffer();
+                    break;
+                case InputMode.VerticalInput:
+                    InternalContext.Buffer = new VerticalBuffer();
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(inputMode), inputMode, "Invalid input mode!");
+            }
+        }
+
+        public enum InputMode {
+            HorizontalInput,
+            VerticalInput
         }
 
         private static void SetWindowsConsoleAnsi() {
@@ -33,16 +50,16 @@ namespace ConsoleInteractive {
         }
 
     }
-
+    
     internal static class InternalWriter {
         private static void Write(object? value) {
             lock (InternalContext.WriteLock) {
                 var currentCursorPos = InternalContext.CursorLeftPos;
                 
-                ConsoleBuffer.ClearVisibleUserInput();
+                InternalContext.Buffer.ClearVisibleUserInput();
                 Console.WriteLine(value);
                 InternalContext.IncrementTopPos();
-                ConsoleBuffer.RedrawInput(currentCursorPos);
+                InternalContext.Buffer.RedrawInput(currentCursorPos);
             }
         }
 

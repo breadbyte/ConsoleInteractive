@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using ConsoleInteractive.Buffer;
 
 namespace ConsoleInteractive {
     public static class ConsoleReader {
@@ -50,8 +51,8 @@ namespace ConsoleInteractive {
                         token.ThrowIfCancellationRequested();
 
                         lock (InternalContext.WriteLock) {
-                            ConsoleBuffer.ClearVisibleUserInput();
-                            var input = ConsoleBuffer.FlushBuffer();
+                            InternalContext.Buffer.ClearVisibleUserInput();
+                            var input = InternalContext.Buffer.FlushBuffer();
                             
                             MessageReceived?.Invoke(null, input);
 
@@ -66,60 +67,39 @@ namespace ConsoleInteractive {
                         break;
                     case ConsoleKey.Backspace:
                         token.ThrowIfCancellationRequested();
-                        lock (InternalContext.WriteLock) {
-                            ConsoleBuffer.RemoveBackward();
-                        }
+                        lock (InternalContext.WriteLock) 
+                            InternalContext.Buffer.RemoveBackward();
+                        
                         break;
                     case ConsoleKey.Delete:
                         token.ThrowIfCancellationRequested();
-                        lock (InternalContext.WriteLock) {
-                            ConsoleBuffer.RemoveForward();
-                        }
+                        lock (InternalContext.WriteLock) 
+                            InternalContext.Buffer.RemoveForward();
+                        
                         break;
                     case ConsoleKey.End:
                         token.ThrowIfCancellationRequested();
-                        lock (InternalContext.WriteLock) {
-                            ConsoleBuffer.MoveToEndBufferPosition();
-                        }
+                        lock (InternalContext.WriteLock) 
+                            InternalContext.Buffer.MoveToEndBufferPosition();
+                        
                         break;
                     case ConsoleKey.Home:
                         token.ThrowIfCancellationRequested();
-                        lock (InternalContext.WriteLock) {
-                            ConsoleBuffer.MoveToStartBufferPosition();
-                        }
+                        lock (InternalContext.WriteLock)
+                            InternalContext.Buffer.MoveToStartBufferPosition();
+                        
                         break;
                     case ConsoleKey.LeftArrow:
                         token.ThrowIfCancellationRequested();
-                        ConsoleBuffer.MoveCursorBackward();
-
-                        // fixme
-                        lock (InternalContext.WriteLock) {
-                            if (k.Modifiers.HasFlag(ConsoleModifiers.Control)) {
-                                var cts = ConsoleBuffer.UserInputBuffer.ToString()[..(InternalContext.CursorLeftPos - 1 < 0 ? 0 : InternalContext.CursorLeftPos - 1)];
-                                Console.SetCursorPosition((cts.LastIndexOf(' ') + 1), InternalContext.CursorTopPos);
-                                break;
-                            }
-                        }
-
+                        lock (InternalContext.WriteLock)
+                            InternalContext.Buffer.MoveCursorBackward();
+                        
                         break;
                     case ConsoleKey.RightArrow:
                         token.ThrowIfCancellationRequested();
-                        ConsoleBuffer.MoveCursorForward();
-
-                        // fixme
-                        lock (InternalContext.WriteLock) {
-                            if (k.Modifiers.HasFlag(ConsoleModifiers.Control)) {
-                                var cts = ConsoleBuffer.UserInputBuffer.ToString()[InternalContext.CursorLeftPos..];
-                                var indexOf = cts.IndexOf(' ');
-                                Console.SetCursorPosition(
-                                    indexOf == -1
-                                        ? ConsoleBuffer.UserInputBuffer.Length
-                                        : indexOf + 1 + InternalContext.CursorLeftPos,
-                                    Console.CursorTop);
-                                break;
-                            }
-                        }
-
+                        lock (InternalContext.WriteLock)
+                            InternalContext.Buffer.MoveCursorForward();
+                        
                         break;
                     default:
                         token.ThrowIfCancellationRequested();
@@ -134,7 +114,7 @@ namespace ConsoleInteractive {
                         }
 
                         lock (InternalContext.WriteLock) {
-                            ConsoleBuffer.Insert(k.KeyChar);
+                            InternalContext.Buffer.Insert(k.KeyChar);
                         }
                         break;
                 }

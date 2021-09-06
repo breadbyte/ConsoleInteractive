@@ -2,7 +2,7 @@
 using System.Text;
 using System.Threading;
 
-namespace ConsoleInteractive {
+namespace ConsoleInteractive.Buffer {
     /*
      * The goal of this ConsoleBuffer is to create a non-interruptable, unlimited length user input buffer.
      * We use three variables to track the current input-
@@ -50,7 +50,7 @@ namespace ConsoleInteractive {
      * - Decrementing the ConsoleOutputLength is inadvisable.
      *
      */
-    internal static class ConsoleBuffer {
+    internal class HorizontalBuffer : IBuffer {
         internal static StringBuilder UserInputBuffer = new();
         private static volatile int CurrentBufferPos = 0;
         private static volatile int ConsoleOutputBeginPos = 0;
@@ -61,7 +61,7 @@ namespace ConsoleInteractive {
         /// Inserts a character in the user input buffer.
         /// </summary>
         /// <param name="c">The character to insert.</param>
-        internal static void Insert(char c) {
+        public void Insert(char c) {
             // Insert at the current buffer pos.
             UserInputBuffer.Insert(CurrentBufferPos, c);
             // Increment the buffer pos to reflect this change.
@@ -79,11 +79,12 @@ namespace ConsoleInteractive {
             RedrawInput(InternalContext.CursorLeftPos);
         }
 
+
         /// <summary>
         /// Redraws the current user input state.
         /// </summary>
         /// <param name="leftCursorPosition">The position the cursor was previously located.</param>
-        internal static void RedrawInput(int leftCursorPosition) {
+        public void RedrawInput(int leftCursorPosition) {
             Console.CursorVisible = false;
             DetermineCurrentInputPos();
             ClearVisibleUserInput();
@@ -95,7 +96,7 @@ namespace ConsoleInteractive {
         /// <summary>
         /// Moves the input buffer forward by one char. Equivalent to pressing the right arrow key.
         /// </summary>
-        internal static void MoveCursorForward() {
+        public void MoveCursorForward() {
             // If we're at the end of the buffer, do nothing.
             if (CurrentBufferPos == UserInputBuffer.Length)
                 return;
@@ -121,7 +122,7 @@ namespace ConsoleInteractive {
         /// <summary>
         /// Moves the input buffer backward by one char. Equivalent to pressing the left arrow key.
         /// </summary>
-        internal static void MoveCursorBackward() {
+        public void MoveCursorBackward() {
             // If we're at the beginning of the buffer, do nothing.
             if (CurrentBufferPos == 0)
                 return;
@@ -143,7 +144,7 @@ namespace ConsoleInteractive {
         /// <summary>
         /// Removes a char from the buffer 'forwards', equivalent to pressing the Delete key.
         /// </summary>
-        internal static void RemoveForward() {
+        public void RemoveForward() {
             // If we're at the end of the buffer, do nothing.
             if (CurrentBufferPos >= UserInputBuffer.Length)
                 return;
@@ -156,7 +157,7 @@ namespace ConsoleInteractive {
         /// <summary>
         /// Removes a char from the buffer 'backwards', equivalent to pressing the Backspace key.
         /// </summary>
-        internal static void RemoveBackward() {
+        public void RemoveBackward() {
             // If we're at the start of the console, do nothing.
             if (CurrentBufferPos == 0)
                 return;
@@ -177,7 +178,7 @@ namespace ConsoleInteractive {
         /// <summary>
         /// Helper function to determine the current input position.
         /// </summary>
-        private static void DetermineCurrentInputPos() {
+        private void DetermineCurrentInputPos() {
             // If we're at the beginning of the console
             if (UserInputBuffer.Length <= ConsoleWriteLimit) {
                 // Set ConsoleOutputBeginPos to 0.
@@ -190,7 +191,7 @@ namespace ConsoleInteractive {
         /// Flushes the User Input Buffer.
         /// </summary>
         /// <returns>The string contained in the buffer.</returns>
-        internal static string FlushBuffer() {
+        public string FlushBuffer() {
             ClearVisibleUserInput();
             Interlocked.Exchange(ref CurrentBufferPos, 0);
             Interlocked.Exchange(ref ConsoleOutputBeginPos, 0);
@@ -205,7 +206,7 @@ namespace ConsoleInteractive {
         /// Clears the visible user input.
         /// Does not clear the internal buffer.
         /// </summary>
-        internal static void ClearVisibleUserInput() {
+        public void ClearVisibleUserInput() {
             lock (InternalContext.WriteLock) {
                 Console.SetCursorPosition(0, InternalContext.CursorTopPos);
                 for (int i = 0; i <= ConsoleWriteLimit; i++) {
@@ -217,13 +218,13 @@ namespace ConsoleInteractive {
             }
         }
 
-        internal static void MoveToStartBufferPosition() {
+        public void MoveToStartBufferPosition() {
             Interlocked.Exchange(ref CurrentBufferPos, 0);
             Interlocked.Exchange(ref ConsoleOutputBeginPos, 0);
             RedrawInput(0);
         }
 
-        internal static void MoveToEndBufferPosition() {
+        public void MoveToEndBufferPosition() {
             if (UserInputBuffer.Length <= InternalContext.CursorLeftPosLimit) {
                 Interlocked.Exchange(ref CurrentBufferPos, UserInputBuffer.Length);
                 Interlocked.Exchange(ref ConsoleOutputBeginPos, 0);
