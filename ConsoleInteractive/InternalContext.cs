@@ -19,6 +19,12 @@ namespace ConsoleInteractive {
             Interlocked.Exchange(ref CursorLeftPos, leftPos);
         }
 
+        internal static void SetCursorPosition(int leftPos, int topPos) {
+            Console.SetCursorPosition(leftPos, topPos);
+            Interlocked.Exchange(ref CursorLeftPos, leftPos);
+            Interlocked.Exchange(ref CursorTopPos, topPos);
+        }
+
         internal static void IncrementLeftPos() {
             if (CursorLeftPosLimit <= CursorLeftPos + 1)
                 return;
@@ -37,6 +43,13 @@ namespace ConsoleInteractive {
             if (CursorTopPosLimit <= CursorTopPos + 1)
                 return;
             CursorTopPos = Interlocked.Increment(ref CursorTopPos);
+            Console.SetCursorPosition(CursorLeftPos, CursorTopPos);
+        }
+
+        internal static void DecrementTopPos() {
+            if (CursorTopPos == 0)
+                return;
+            CursorTopPos = Interlocked.Decrement(ref CursorTopPos);
             Console.SetCursorPosition(CursorLeftPos, CursorTopPos);
         }
     }
