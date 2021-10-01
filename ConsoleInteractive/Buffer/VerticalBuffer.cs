@@ -53,15 +53,38 @@ namespace ConsoleInteractive.Buffer {
         }
 
         public void RedrawInput(int leftCursorPosition){
-            Console.Write(UserInputBuffer.ToString()[VerticalBufferStart..]);
-        }
+            Console.Write(UserInputBuffer.ToString()[VerticalBufferStart..(VerticalBufferLimit * InternalContext.CursorLeftPosLimit + (VerticalBufferStart - 1))]);
+         }
 
         public void MoveCursorForward() {
             throw new System.NotImplementedException();
         }
 
         public void MoveCursorBackward() {
-            throw new System.NotImplementedException();
+            if (CurrentBufferPos == 0)
+                return;
+            
+            Interlocked.Decrement(ref CurrentBufferPos);
+            
+            // If we're at the end of a console line
+            if (InternalContext.CursorLeftPos == 0) {
+                // If we're at the start of the buffer, start moving the buffer backwards
+                if (CurrentVerticalBuffer == 1) {
+                    Interlocked.Decrement(ref VerticalBufferStart);
+                    RedrawInput(0);
+                    InternalContext.SetCursorPosition(0, InternalContext.CursorTopPos);
+                }
+
+                // We're traversing through the vbuffer.
+                else {
+                    Interlocked.Decrement(ref CurrentVerticalBuffer);
+                    InternalContext.DecrementTopPos();
+                    InternalContext.SetLeftCursorPosition(InternalContext.CursorLeftPosLimit - 1);
+                    return;
+                }
+            }
+            
+            InternalContext.DecrementLeftPos();
         }
 
         public void RemoveForward() {
