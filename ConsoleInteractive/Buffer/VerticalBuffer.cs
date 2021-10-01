@@ -48,16 +48,45 @@ namespace ConsoleInteractive.Buffer {
                 InternalContext.IncrementLeftPos();
             }
 
-            UserInputBuffer.Append(c);
+            UserInputBuffer.Insert(CurrentBufferPos, c);
             Interlocked.Increment(ref CurrentBufferPos);
+
+            // redraw only if necessary
+            if (CurrentBufferPos != UserInputBuffer.Length)
+                RedrawInput(0);
         }
 
-        public void RedrawInput(int leftCursorPosition){
-            Console.Write(UserInputBuffer.ToString()[VerticalBufferStart..(VerticalBufferLimit * InternalContext.CursorLeftPosLimit + (VerticalBufferStart - 1))]);
-         }
+        public void RedrawInput(int leftCursorPosition) {
+            var maxLength = VerticalBufferLimit * InternalContext.CursorLeftPosLimit + (VerticalBufferStart - 1);
+            Console.SetCursorPosition(0, (CurrentVerticalBuffer - 1) - InternalContext.CursorTopPos);
+
+            Console.Write(UserInputBuffer.Length < maxLength
+                ? UserInputBuffer.ToString()[VerticalBufferStart..UserInputBuffer.Length]
+                : UserInputBuffer.ToString()[VerticalBufferStart..maxLength]);
+
+            Console.SetCursorPosition(InternalContext.CursorLeftPos, InternalContext.CursorTopPos);
+        }
 
         public void MoveCursorForward() {
-            throw new System.NotImplementedException();
+            if (CurrentBufferPos == UserInputBuffer.Length)
+                return;
+            
+            Interlocked.Increment(ref CurrentBufferPos);
+            
+            if (InternalContext.CursorLeftPos == ConsoleWriteLimit) {
+                if (CurrentVerticalBuffer == VerticalBufferLimit) {
+                    Interlocked.Increment(ref VerticalBufferStart);
+                    RedrawInput(0);
+                }
+                else {
+                    Interlocked.Increment(ref CurrentVerticalBuffer);
+                    InternalContext.IncrementTopPos();
+                    InternalContext.SetLeftCursorPosition(0);
+                    return;
+                }
+            }
+
+            InternalContext.IncrementLeftPos();
         }
 
         public void MoveCursorBackward() {
@@ -72,7 +101,6 @@ namespace ConsoleInteractive.Buffer {
                 if (CurrentVerticalBuffer == 1) {
                     Interlocked.Decrement(ref VerticalBufferStart);
                     RedrawInput(0);
-                    InternalContext.SetCursorPosition(0, InternalContext.CursorTopPos);
                 }
 
                 // We're traversing through the vbuffer.
