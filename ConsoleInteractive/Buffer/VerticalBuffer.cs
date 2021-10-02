@@ -23,17 +23,8 @@ namespace ConsoleInteractive.Buffer {
                 // If we've reached the current vertical limit
                 if (CurrentVerticalBuffer == VerticalBufferLimit) {
                     Interlocked.Increment(ref VerticalBufferStart);
-                    UserInputBuffer.Append(c);
-                    Interlocked.Increment(ref CurrentBufferPos);
-                    
-                    // Reset to the initial position of the input buffer.
-                    Console.SetCursorPosition(0, CurrentVerticalBuffer - (InternalContext.CursorTopPos + 1));
-                    RedrawInput(0);
-
-                    // Return to our previous position.
-                    Console.SetCursorPosition(InternalContext.CursorLeftPos, InternalContext.CursorTopPos);
-                    return;
                 }
+                
                 // If we haven't reached the current vertical limit yet
                 // Increment the vbuffer
                 else {
@@ -52,7 +43,8 @@ namespace ConsoleInteractive.Buffer {
             Interlocked.Increment(ref CurrentBufferPos);
 
             // redraw only if necessary
-            if (CurrentBufferPos != UserInputBuffer.Length)
+            if (UserInputBuffer.Length > VerticalBufferLimit * InternalContext.CursorLeftPosLimit 
+                || CurrentBufferPos < UserInputBuffer.Length)
                 RedrawInput(0);
         }
 
