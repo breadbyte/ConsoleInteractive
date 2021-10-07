@@ -112,7 +112,23 @@ namespace ConsoleInteractive.Buffer {
         }
 
         public void RemoveBackward() {
-            throw new System.NotImplementedException();
+            if (CurrentBufferPos == 0)
+                return;
+
+            MoveCursorBackward();
+            Console.Write(' ');
+            UserInputBuffer.Remove(CurrentBufferPos, 1);
+            RedrawInput(0);
+
+            var Lpos = InternalContext.CursorLeftPos;
+            var Tpos = InternalContext.CursorTopPos;
+            
+            if (CurrentBufferPos < MaxDrawLength) {
+                MoveToEndBufferPosition();
+                MoveCursorForward();
+                Console.Write(' ');
+                InternalContext.SetCursorPosition(Lpos, Tpos);
+            }
         }
 
         public string FlushBuffer() {
