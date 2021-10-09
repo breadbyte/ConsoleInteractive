@@ -12,6 +12,8 @@ namespace ConsoleInteractive.Buffer {
         private static volatile int CurrentVerticalBuffer = 1;
         private static volatile int VerticalBufferStart = 0;
         
+        private static int MaxDrawLength = VerticalBufferLimit * InternalContext.CursorLeftPosLimit + (VerticalBufferStart - 1);
+        
         // horizontal limit
         private static volatile int ConsoleWriteLimit = InternalContext.CursorLeftPosLimit - 1;
         public void Insert(char c) {
@@ -49,12 +51,11 @@ namespace ConsoleInteractive.Buffer {
         }
 
         public void RedrawInput(int leftCursorPosition) {
-            var maxLength = VerticalBufferLimit * InternalContext.CursorLeftPosLimit + (VerticalBufferStart - 1);
             Console.SetCursorPosition(0, (CurrentVerticalBuffer - 1) - InternalContext.CursorTopPos);
 
-            Console.Write(UserInputBuffer.Length < maxLength
+            Console.Write(UserInputBuffer.Length < MaxDrawLength
                 ? UserInputBuffer.ToString()[VerticalBufferStart..UserInputBuffer.Length]
-                : UserInputBuffer.ToString()[VerticalBufferStart..maxLength]);
+                : UserInputBuffer.ToString()[VerticalBufferStart..MaxDrawLength]);
 
             Console.SetCursorPosition(InternalContext.CursorLeftPos, InternalContext.CursorTopPos);
         }
@@ -144,7 +145,15 @@ namespace ConsoleInteractive.Buffer {
         }
 
         public void MoveToEndBufferPosition() {
-            throw new System.NotImplementedException();
+            if (UserInputBuffer.Length > MaxDrawLength) {
+                var aheadBy = CurrentBufferPos - MaxDrawLength;
+                Interlocked.Exchange(ref VerticalBufferStart, aheadBy);
+                Interlocked.Exchange(ref CurrentBufferPos, UserInputBuffer.Length);
+                // todo set position
+            }
+            else {
+                Interlocked.Exchange(ref CurrentBufferPos, UserInputBuffer.Length);
+            }
         }
     }
 }
