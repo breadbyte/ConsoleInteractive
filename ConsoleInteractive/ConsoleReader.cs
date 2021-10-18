@@ -91,35 +91,10 @@ namespace ConsoleInteractive {
                     case ConsoleKey.LeftArrow:
                         token.ThrowIfCancellationRequested();
                         ConsoleBuffer.MoveCursorBackward();
-
-                        // fixme
-                        lock (InternalContext.WriteLock) {
-                            if (k.Modifiers.HasFlag(ConsoleModifiers.Control)) {
-                                var cts = ConsoleBuffer.UserInputBuffer.ToString()[..(InternalContext.CursorLeftPos - 1 < 0 ? 0 : InternalContext.CursorLeftPos - 1)];
-                                Console.SetCursorPosition((cts.LastIndexOf(' ') + 1), InternalContext.CursorTopPos);
-                                break;
-                            }
-                        }
-
                         break;
                     case ConsoleKey.RightArrow:
                         token.ThrowIfCancellationRequested();
                         ConsoleBuffer.MoveCursorForward();
-
-                        // fixme
-                        lock (InternalContext.WriteLock) {
-                            if (k.Modifiers.HasFlag(ConsoleModifiers.Control)) {
-                                var cts = ConsoleBuffer.UserInputBuffer.ToString()[InternalContext.CursorLeftPos..];
-                                var indexOf = cts.IndexOf(' ');
-                                Console.SetCursorPosition(
-                                    indexOf == -1
-                                        ? ConsoleBuffer.UserInputBuffer.Length
-                                        : indexOf + 1 + InternalContext.CursorLeftPos,
-                                    Console.CursorTop);
-                                break;
-                            }
-                        }
-
                         break;
                     default:
                         token.ThrowIfCancellationRequested();
