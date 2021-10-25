@@ -42,7 +42,10 @@ namespace ConsoleInteractive {
                 ConsoleBuffer.ClearVisibleUserInput();
                 Console.WriteLine(value);
                 InternalContext.IncrementTopPos();
-                ConsoleBuffer.RedrawInput(currentCursorPos);
+                
+                ConsoleBuffer.RedrawInput();
+                Console.SetCursorPosition(currentCursorPos, InternalContext.CursorTopPos);
+                InternalContext.SetLeftCursorPosition(currentCursorPos);
             }
         }
 

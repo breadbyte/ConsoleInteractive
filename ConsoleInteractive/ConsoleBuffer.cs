@@ -66,30 +66,39 @@ namespace ConsoleInteractive {
             UserInputBuffer.Insert(CurrentBufferPos, c);
             // Increment the buffer pos to reflect this change.
             Interlocked.Increment(ref CurrentBufferPos);
+
+            // If we're inserting outside the buffer (buffer len is gt/eq to console horiz limit)
+            if (InternalContext.CursorLeftPosLimit <= UserInputBuffer.Length) {
+                Console.SetCursorPosition(0, InternalContext.CursorTopPos);
+                
+                if (InternalContext.CursorLeftPos == ConsoleWriteLimit)
+                    Interlocked.Increment(ref ConsoleOutputBeginPos);
+
+                RedrawInput();
+            }
+            else 
+                Console.Write(c);
+            
             // Increment the console cursor.
             InternalContext.IncrementLeftPos();
-
-            // If we're at the end of the console (buffer pos is gt/eq to console horiz limit)
-            if (InternalContext.CursorLeftPosLimit <= CurrentBufferPos)
-                Interlocked.Increment(ref ConsoleOutputBeginPos);
-            else
-                Interlocked.Increment(ref ConsoleOutputLength);
-            
-            // Redraw the input.
-            RedrawInput(InternalContext.CursorLeftPos);
         }
 
         /// <summary>
         /// Redraws the current user input state.
         /// </summary>
         /// <param name="leftCursorPosition">The position the cursor was previously located.</param>
-        internal static void RedrawInput(int leftCursorPosition) {
-            Console.CursorVisible = false;
-            DetermineCurrentInputPos();
-            ClearVisibleUserInput();
-            Console.Write(UserInputBuffer.ToString().Substring(ConsoleOutputBeginPos, ConsoleOutputLength));
-            InternalContext.SetLeftCursorPosition(leftCursorPosition);
-            Console.CursorVisible = true;
+        internal static void RedrawInput() {
+            lock (InternalContext.WriteLock) {
+                Console.CursorVisible = false;
+                Console.SetCursorPosition(0, InternalContext.CursorTopPos);
+                
+                // Determine the render length.
+                bool isRenderFullLength = ConsoleWriteLimit < UserInputBuffer.Length;
+                Console.Write(UserInputBuffer.ToString().Substring(ConsoleOutputBeginPos, isRenderFullLength ? ConsoleWriteLimit : UserInputBuffer.Length));
+
+                Console.SetCursorPosition(InternalContext.CursorLeftPos, InternalContext.CursorTopPos);
+                Console.CursorVisible = true;
+            }
         }
 
         /// <summary>
@@ -100,22 +109,15 @@ namespace ConsoleInteractive {
             if (CurrentBufferPos == UserInputBuffer.Length)
                 return;
             
-            // Move the buffer position by one.
             Interlocked.Increment(ref CurrentBufferPos);
-            // Move the console cursor by one.
-            InternalContext.IncrementLeftPos();
             
-            
-            // If we're at the end of the console (current buffer is gt/eq the write limit) 
-            if (CurrentBufferPos > ConsoleWriteLimit) {
-                // Increment ConsoleOutputBeginPos by one.
-                ConsoleOutputBeginPos = Interlocked.Increment(ref ConsoleOutputBeginPos);
-                
-                // Set the output length to the console write limit.
-                Interlocked.Exchange(ref ConsoleOutputLength, ConsoleWriteLimit); 
+            // If we have extra buffer at the end
+            if (InternalContext.CursorLeftPos == ConsoleWriteLimit && UserInputBuffer.Length > ConsoleWriteLimit) {
+                Interlocked.Increment(ref ConsoleOutputBeginPos);
+                RedrawInput();
             }
             
-            RedrawInput(InternalContext.CursorLeftPos);
+            InternalContext.IncrementLeftPos();
         }
 
         /// <summary>
@@ -125,21 +127,18 @@ namespace ConsoleInteractive {
             // If we're at the beginning of the buffer, do nothing.
             if (CurrentBufferPos == 0)
                 return;
-            
-            // Decrement the buffer position by one.
-            CurrentBufferPos = Interlocked.Decrement(ref CurrentBufferPos);
 
-            // If we have more characters than the write limit, move backwards normally.
-            // Decrease the output begin position otherwise.
-            if (CurrentBufferPos < ConsoleWriteLimit) {
-                InternalContext.DecrementLeftPos();
-            }
-            else
+            Interlocked.Decrement(ref CurrentBufferPos);
+
+            // If we have extra buffer at the start
+            if (InternalContext.CursorLeftPos == 0 && ConsoleOutputBeginPos != 0) {
                 Interlocked.Decrement(ref ConsoleOutputBeginPos);
-            
-            RedrawInput(InternalContext.CursorLeftPos);
+                RedrawInput();
+            }
+
+            InternalContext.DecrementLeftPos();
         }
-        
+
         /// <summary>
         /// Removes a char from the buffer 'forwards', equivalent to pressing the Delete key.
         /// </summary>
@@ -150,7 +149,7 @@ namespace ConsoleInteractive {
             
             // Remove 'forward', i.e. the delete button
             UserInputBuffer.Remove(CurrentBufferPos, 1);
-            RedrawInput(InternalContext.CursorLeftPos);
+            RedrawInput();
         }
 
         /// <summary>
@@ -171,21 +170,9 @@ namespace ConsoleInteractive {
             else
                 Interlocked.Decrement(ref ConsoleOutputBeginPos);
             
-            RedrawInput(InternalContext.CursorLeftPos);
+            RedrawInput();
         }
         
-        /// <summary>
-        /// Helper function to determine the current input position.
-        /// </summary>
-        private static void DetermineCurrentInputPos() {
-            // If we're at the beginning of the console
-            if (UserInputBuffer.Length <= ConsoleWriteLimit) {
-                // Set ConsoleOutputBeginPos to 0.
-                Interlocked.Exchange(ref ConsoleOutputBeginPos, 0);
-                Interlocked.Exchange(ref ConsoleOutputLength, UserInputBuffer.Length);
-            }
-        }
-
         /// <summary>
         /// Flushes the User Input Buffer.
         /// </summary>
@@ -220,7 +207,7 @@ namespace ConsoleInteractive {
         internal static void MoveToStartBufferPosition() {
             Interlocked.Exchange(ref CurrentBufferPos, 0);
             Interlocked.Exchange(ref ConsoleOutputBeginPos, 0);
-            RedrawInput(0);
+            RedrawInput();
         }
 
         internal static void MoveToEndBufferPosition() {
@@ -228,14 +215,14 @@ namespace ConsoleInteractive {
                 Interlocked.Exchange(ref CurrentBufferPos, UserInputBuffer.Length);
                 Interlocked.Exchange(ref ConsoleOutputBeginPos, 0);
                 Interlocked.Exchange(ref ConsoleOutputLength, UserInputBuffer.Length);
-                RedrawInput(UserInputBuffer.Length);
+                RedrawInput();
                 return;
             }
 
             var pos = UserInputBuffer.Length % InternalContext.CursorLeftPosLimit;
             Interlocked.Exchange(ref CurrentBufferPos, UserInputBuffer.Length);
             Interlocked.Exchange(ref ConsoleOutputBeginPos, pos + 1);
-            RedrawInput(ConsoleWriteLimit);
+            RedrawInput();
         }
     }
 }

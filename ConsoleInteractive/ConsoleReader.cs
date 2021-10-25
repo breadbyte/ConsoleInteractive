@@ -90,11 +90,13 @@ namespace ConsoleInteractive {
                         break;
                     case ConsoleKey.LeftArrow:
                         token.ThrowIfCancellationRequested();
-                        ConsoleBuffer.MoveCursorBackward();
+                        lock (InternalContext.WriteLock)
+                            ConsoleBuffer.MoveCursorBackward();
                         break;
                     case ConsoleKey.RightArrow:
                         token.ThrowIfCancellationRequested();
-                        ConsoleBuffer.MoveCursorForward();
+                        lock (InternalContext.WriteLock)
+                            ConsoleBuffer.MoveCursorForward();
                         break;
                     default:
                         token.ThrowIfCancellationRequested();
