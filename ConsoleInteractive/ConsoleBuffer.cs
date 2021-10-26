@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Text;
 using System.Threading;
 
@@ -76,9 +77,11 @@ namespace ConsoleInteractive {
 
                 RedrawInput();
             }
-            else 
+            else {
+                Interlocked.Increment(ref ConsoleOutputLength);
                 Console.Write(c);
-            
+            }
+
             // Increment the console cursor.
             InternalContext.IncrementLeftPos();
         }
@@ -89,15 +92,19 @@ namespace ConsoleInteractive {
         /// <param name="leftCursorPosition">The position the cursor was previously located.</param>
         internal static void RedrawInput() {
             lock (InternalContext.WriteLock) {
-                Console.CursorVisible = false;
+               // Console.CursorVisible = false;
                 Console.SetCursorPosition(0, InternalContext.CursorTopPos);
                 
-                // Determine the render length.
-                bool isRenderFullLength = ConsoleWriteLimit < UserInputBuffer.Length;
-                Console.Write(UserInputBuffer.ToString().Substring(ConsoleOutputBeginPos, isRenderFullLength ? ConsoleWriteLimit : UserInputBuffer.Length));
+                PrintDebugOperation("Redraw requested");
+                
+                // todo redundant? do we still need this check here
+                if (UserInputBuffer.Length + 1 % ConsoleWriteLimit == 0 && ConsoleOutputBeginPos != 0)
+                    Interlocked.Exchange(ref ConsoleOutputLength, UserInputBuffer.Length);
+
+                Console.Write(UserInputBuffer.ToString().Substring(ConsoleOutputBeginPos, ConsoleOutputLength));
 
                 Console.SetCursorPosition(InternalContext.CursorLeftPos, InternalContext.CursorTopPos);
-                Console.CursorVisible = true;
+                // Console.CursorVisible = true;
             }
         }
 
@@ -147,32 +154,84 @@ namespace ConsoleInteractive {
             if (CurrentBufferPos >= UserInputBuffer.Length)
                 return;
             
+            PrintDebugOperation("RemoveForward was called.");
+            
             // Remove 'forward', i.e. the delete button
             UserInputBuffer.Remove(CurrentBufferPos, 1);
+            if (UserInputBuffer.Length - CurrentBufferPos != 0) {
+                Interlocked.Decrement(ref ConsoleOutputLength);
+                RedrawInput();
+
+                RemoveTrailingLetter();
+                PrintDebugOperation("RemoveForward was executed, special redraw necessary.");
+                return;
+            }
+            else {
+                Console.Write(' ');
+                Interlocked.Decrement(ref ConsoleOutputLength);
+            }
+
             RedrawInput();
+            PrintDebugOperation("RemoveForward was executed.");
         }
 
         /// <summary>
         /// Removes a char from the buffer 'backwards', equivalent to pressing the Backspace key.
         /// </summary>
         internal static void RemoveBackward() {
-            // If we're at the start of the console, do nothing.
+            // If we're at the start of the buffer, do nothing.
             if (CurrentBufferPos == 0)
                 return;
-            
-            // Remove 'backward', i.e. backspace
-            UserInputBuffer.Remove(CurrentBufferPos - 1, 1);
-            Interlocked.Decrement(ref CurrentBufferPos);
 
-            if (CurrentBufferPos < ConsoleWriteLimit) {
-                InternalContext.DecrementLeftPos();
-            }
-            else
+            PrintDebugOperation("RemoveBackward was called.");
+
+            // Remove 'backward', i.e. backspace
+            Interlocked.Decrement(ref CurrentBufferPos);
+            UserInputBuffer.Remove(CurrentBufferPos, 1);
+
+            //Interlocked.Decrement(ref ConsoleOutputLength);
+            if (ConsoleOutputBeginPos != 0)
                 Interlocked.Decrement(ref ConsoleOutputBeginPos);
-            
+            else {
+                Interlocked.Exchange(ref ConsoleOutputLength, UserInputBuffer.Length);
+                InternalContext.DecrementLeftPos();
+                Console.Write(' ');
+                Console.Write('\b');
+
+                // We need to redraw because there's content in front of us.
+                if (CurrentBufferPos < UserInputBuffer.Length) {
+                    RedrawInput();
+                    RemoveTrailingLetter();
+                    PrintDebugOperation("RemoveBackward was executed, redraw necessary.");
+                } else
+                    PrintDebugOperation("RemoveBackward was executed, non-redraw.");
+                
+                return;
+            }
+
+            Console.Write('\b');
+            Console.Write(' ');
             RedrawInput();
+
+            PrintDebugOperation("RemoveBackward was executed.");
         }
-        
+
+        private static void PrintDebugOperation(string preMessage) {
+            Debug.WriteLine(preMessage);
+            Debug.WriteLine($"CBP {CurrentBufferPos} | OBP {ConsoleOutputBeginPos} | IBL {UserInputBuffer.Length} | Modulo {UserInputBuffer.Length % ConsoleWriteLimit} | ConPos {InternalContext.CursorLeftPos}");
+        }
+
+        private static void RemoveTrailingLetter() {
+            if (UserInputBuffer.Length / ConsoleWriteLimit != 0) {
+                Console.SetCursorPosition((InternalContext.CursorLeftPos + ((UserInputBuffer.Length - CurrentBufferPos) % ConsoleWriteLimit)), InternalContext.CursorTopPos);
+            } else
+                Console.SetCursorPosition(UserInputBuffer.Length, InternalContext.CursorTopPos);
+            
+            
+            Console.Write(' ');
+            Console.SetCursorPosition(InternalContext.CursorLeftPos, InternalContext.CursorTopPos);
+        }
+
         /// <summary>
         /// Flushes the User Input Buffer.
         /// </summary>
