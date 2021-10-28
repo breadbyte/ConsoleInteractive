@@ -101,12 +101,7 @@ namespace ConsoleInteractive {
                 
                 PrintDebugOperation("Redraw requested");
                 
-                // todo redundant? do we still need this check here
-                if (UserInputBuffer.Length + 1 % ConsoleWriteLimit == 0 && ConsoleOutputBeginPos != 0)
-                    Interlocked.Exchange(ref ConsoleOutputLength, UserInputBuffer.Length);
-
                 Console.Write(UserInputBuffer.ToString().Substring(ConsoleOutputBeginPos, ConsoleOutputLength));
-
                 Console.SetCursorPosition(InternalContext.CursorLeftPos, InternalContext.CursorTopPos);
                 // Console.CursorVisible = true;
             }
@@ -273,7 +268,12 @@ namespace ConsoleInteractive {
         internal static void MoveToStartBufferPosition() {
             Interlocked.Exchange(ref CurrentBufferPos, 0);
             Interlocked.Exchange(ref ConsoleOutputBeginPos, 0);
+            if (UserInputBuffer.Length < ConsoleOutputLength) {
+                Interlocked.Exchange(ref ConsoleOutputLength, UserInputBuffer.Length);
+            }
+
             RedrawInput();
+            InternalContext.SetLeftCursorPosition(0);
         }
 
         internal static void MoveToEndBufferPosition() {
@@ -281,13 +281,14 @@ namespace ConsoleInteractive {
                 Interlocked.Exchange(ref CurrentBufferPos, UserInputBuffer.Length);
                 Interlocked.Exchange(ref ConsoleOutputBeginPos, 0);
                 Interlocked.Exchange(ref ConsoleOutputLength, UserInputBuffer.Length);
-                RedrawInput();
+                InternalContext.SetLeftCursorPosition(UserInputBuffer.Length);
                 return;
             }
-
-            var pos = UserInputBuffer.Length % InternalContext.CursorLeftPosLimit;
+            
+            InternalContext.SetLeftCursorPosition(ConsoleWriteLimit);
+            Interlocked.Exchange(ref ConsoleOutputLength, ConsoleWriteLimit);
+            Interlocked.Exchange(ref ConsoleOutputBeginPos, UserInputBuffer.Length - ConsoleWriteLimit);
             Interlocked.Exchange(ref CurrentBufferPos, UserInputBuffer.Length);
-            Interlocked.Exchange(ref ConsoleOutputBeginPos, pos + 1);
             RedrawInput();
         }
     }
