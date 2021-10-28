@@ -80,6 +80,10 @@ namespace ConsoleInteractive {
             else {
                 Interlocked.Increment(ref ConsoleOutputLength);
                 Console.Write(c);
+
+                if (CurrentBufferPos < UserInputBuffer.Length) {
+                    RedrawInput();
+                }
             }
 
             // Increment the console cursor.
@@ -254,7 +258,10 @@ namespace ConsoleInteractive {
         internal static void ClearVisibleUserInput() {
             lock (InternalContext.WriteLock) {
                 Console.SetCursorPosition(0, InternalContext.CursorTopPos);
-                for (int i = 0; i <= ConsoleWriteLimit; i++) {
+
+                bool requireCompleteClear = UserInputBuffer.Length > ConsoleWriteLimit;
+
+                for (int i = 0; i <= (requireCompleteClear ? ConsoleWriteLimit : UserInputBuffer.Length); i++) {
                     Console.Write(' ');
                 }
 
