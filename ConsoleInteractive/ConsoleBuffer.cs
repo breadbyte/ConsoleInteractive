@@ -157,11 +157,16 @@ namespace ConsoleInteractive {
             
             // Remove 'forward', i.e. the delete button
             UserInputBuffer.Remove(CurrentBufferPos, 1);
-            if (UserInputBuffer.Length - CurrentBufferPos != 0) {
+            if (UserInputBuffer.Length >= ConsoleWriteLimit) {
+                
                 Interlocked.Decrement(ref ConsoleOutputLength);
                 RedrawInput();
+                
+                // Trim the trailing letter if necessary.
+                if (UserInputBuffer.Length - CurrentBufferPos < ConsoleWriteLimit - InternalContext.CursorLeftPos) {
+                    RemoveTrailingLetter();
+                }
 
-                RemoveTrailingLetter();
                 PrintDebugOperation("RemoveForward was executed, special redraw necessary.");
                 return;
             }
@@ -172,6 +177,10 @@ namespace ConsoleInteractive {
 
             RedrawInput();
             PrintDebugOperation("RemoveForward was executed.");
+
+            if (CurrentBufferPos != UserInputBuffer.Length) {
+                RemoveTrailingLetter();
+            }
         }
 
         /// <summary>
@@ -221,7 +230,9 @@ namespace ConsoleInteractive {
         }
 
         private static void RemoveTrailingLetter() {
-            if (UserInputBuffer.Length / ConsoleWriteLimit != 0) {
+            PrintDebugOperation("Trailing character is trimmed.");
+
+            if (ConsoleOutputBeginPos != 0) {
                 Console.SetCursorPosition((InternalContext.CursorLeftPos + ((UserInputBuffer.Length - CurrentBufferPos) % ConsoleWriteLimit)), InternalContext.CursorTopPos);
             } else
                 Console.SetCursorPosition(UserInputBuffer.Length, InternalContext.CursorTopPos);
