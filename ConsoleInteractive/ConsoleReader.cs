@@ -98,6 +98,9 @@ namespace ConsoleInteractive {
                         lock (InternalContext.WriteLock)
                             ConsoleBuffer.MoveCursorForward();
                         break;
+                    case ConsoleKey.DownArrow:
+                        Debugger.Break();
+                        break;
                     default:
                         token.ThrowIfCancellationRequested();
 
