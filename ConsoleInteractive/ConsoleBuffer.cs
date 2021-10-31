@@ -283,9 +283,11 @@ namespace ConsoleInteractive {
         internal static void MoveToStartBufferPosition() {
             Interlocked.Exchange(ref CurrentBufferPos, 0);
             Interlocked.Exchange(ref ConsoleOutputBeginPos, 0);
-            if (UserInputBuffer.Length < ConsoleOutputLength) {
+            if (UserInputBuffer.Length < ConsoleWriteLimit)
                 Interlocked.Exchange(ref ConsoleOutputLength, UserInputBuffer.Length);
-            }
+            else
+                Interlocked.Exchange(ref ConsoleOutputLength, ConsoleWriteLimit);
+
 
             RedrawInput();
             InternalContext.SetLeftCursorPosition(0);
