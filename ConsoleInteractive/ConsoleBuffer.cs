@@ -65,11 +65,13 @@ namespace ConsoleInteractive {
         internal static void Insert(char c) {
             // Insert at the current buffer pos.
             UserInputBuffer.Insert(CurrentBufferPos, c);
-            // Increment the buffer pos to reflect this change.
             Interlocked.Increment(ref CurrentBufferPos);
 
             // If we're inserting outside the buffer (buffer len is gt/eq to console horiz limit)
-            if (InternalContext.CursorLeftPosLimit <= UserInputBuffer.Length) {
+            if (ConsoleWriteLimit <= UserInputBuffer.Length) {
+                if (ConsoleOutputLength != ConsoleWriteLimit)
+                    Interlocked.Increment(ref ConsoleOutputLength);
+                
                 Console.SetCursorPosition(0, InternalContext.CursorTopPos);
                 
                 if (InternalContext.CursorLeftPos == ConsoleWriteLimit)
@@ -143,6 +145,10 @@ namespace ConsoleInteractive {
             // If we have extra buffer at the start
             if (InternalContext.CursorLeftPos == 0 && ConsoleOutputBeginPos != 0) {
                 Interlocked.Decrement(ref ConsoleOutputBeginPos);
+
+                if (ConsoleOutputLength != UserInputBuffer.Length && ConsoleOutputLength < ConsoleWriteLimit)
+                    Interlocked.Increment(ref ConsoleOutputLength);
+                
                 RedrawInput();
             }
 
@@ -159,32 +165,19 @@ namespace ConsoleInteractive {
             
             PrintDebugOperation("RemoveForward was called.");
             
-            // Remove 'forward', i.e. the delete button
             UserInputBuffer.Remove(CurrentBufferPos, 1);
-            if (UserInputBuffer.Length >= ConsoleWriteLimit) {
-                
-                Interlocked.Decrement(ref ConsoleOutputLength);
-                RedrawInput();
-                
-                // Trim the trailing letter if necessary.
-                if (UserInputBuffer.Length - CurrentBufferPos < ConsoleWriteLimit - InternalContext.CursorLeftPos) {
-                    RemoveTrailingLetter();
-                }
-
-                PrintDebugOperation("RemoveForward was executed, special redraw necessary.");
-                return;
-            }
-            else {
-                Console.Write(' ');
-                Interlocked.Decrement(ref ConsoleOutputLength);
-            }
-
-            RedrawInput();
-            PrintDebugOperation("RemoveForward was executed.");
-
-            if (CurrentBufferPos != UserInputBuffer.Length) {
+            bool isBufferLongerThanWriteLimit = (UserInputBuffer.Length - CurrentBufferPos) + InternalContext.CursorLeftPos >= ConsoleWriteLimit;
+            
+            // If the buffer isn't longer than the write limit
+            if (GetConsoleEndPosition() < ConsoleWriteLimit && !isBufferLongerThanWriteLimit) {
+                Interlocked.Decrement(ref ConsoleOutputLength); // Shorten the length so we don't get an OutOfBoundsException.
                 RemoveTrailingLetter();
+                RedrawInput();
             }
+            
+            // Redraw by default.
+            else
+                RedrawInput();
         }
 
         /// <summary>
@@ -228,6 +221,22 @@ namespace ConsoleInteractive {
             PrintDebugOperation("RemoveBackward was executed.");
         }
 
+        // Magic math I came up with.
+        // CursorPosition + (BufferLength - BufferPosition) % ConsoleWidth
+        // 1. [BufferLength - BufferPosition]
+        // The buffer length is subtracted from the buffer position to get the length after the buffer position.
+        //                  If my buffer length was here  ^
+        //      I would get the string length from here ->
+        //
+        // 2. [.. % ConsoleWidth]
+        // We get the modulo of this length with the width of the console.
+        // This allows us to trim the length further, with one that aligns to the length of the console.
+        //
+        // 3. [CursorPosition + ..]
+        // We finally add the position of the console to align the actual cursor position, as the modulo of the width 
+        // does not necessarily fall into the correct position, as it is aligned to the console width. 
+        private static int GetConsoleEndPosition() => InternalContext.CursorLeftPos + (UserInputBuffer.Length - CurrentBufferPos) % ConsoleWriteLimit;
+
         private static void PrintDebugOperation(string preMessage) {
             Debug.WriteLine(preMessage);
             Debug.WriteLine($"CBP {CurrentBufferPos} | OBP {ConsoleOutputBeginPos} | IBL {UserInputBuffer.Length} | Modulo {UserInputBuffer.Length % ConsoleWriteLimit} | ConPos {InternalContext.CursorLeftPos}");
@@ -237,7 +246,7 @@ namespace ConsoleInteractive {
             PrintDebugOperation("Trailing character is trimmed.");
 
             if (ConsoleOutputBeginPos != 0) {
-                Console.SetCursorPosition((InternalContext.CursorLeftPos + ((UserInputBuffer.Length - CurrentBufferPos) % ConsoleWriteLimit)), InternalContext.CursorTopPos);
+                Console.SetCursorPosition(GetConsoleEndPosition(), InternalContext.CursorTopPos);
             } else
                 Console.SetCursorPosition(UserInputBuffer.Length, InternalContext.CursorTopPos);
             
