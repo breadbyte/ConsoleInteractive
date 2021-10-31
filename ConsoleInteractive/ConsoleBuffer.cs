@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Diagnostics;
 using System.Text;
 using System.Threading;
 
@@ -102,14 +101,12 @@ namespace ConsoleInteractive {
                 if (UserInputBuffer.Length == 0)
                     return;
                 
-                // Console.CursorVisible = false;
+                Console.CursorVisible = false;
                 Console.SetCursorPosition(0, InternalContext.CursorTopPos);
-                
-                PrintDebugOperation("Redraw requested");
-                
+
                 Console.Write(UserInputBuffer.ToString().Substring(ConsoleOutputBeginPos, ConsoleOutputLength));
                 Console.SetCursorPosition(InternalContext.CursorLeftPos, InternalContext.CursorTopPos);
-                // Console.CursorVisible = true;
+                Console.CursorVisible = true;
             }
         }
 
@@ -162,9 +159,7 @@ namespace ConsoleInteractive {
             // If we're at the end of the buffer, do nothing.
             if (CurrentBufferPos >= UserInputBuffer.Length)
                 return;
-            
-            PrintDebugOperation("RemoveForward was called.");
-            
+
             UserInputBuffer.Remove(CurrentBufferPos, 1);
             bool isBufferLongerThanWriteLimit = (UserInputBuffer.Length - CurrentBufferPos) + InternalContext.CursorLeftPos >= ConsoleWriteLimit;
             
@@ -188,8 +183,6 @@ namespace ConsoleInteractive {
             if (CurrentBufferPos == 0)
                 return;
 
-            PrintDebugOperation("RemoveBackward was called.");
-
             // Remove 'backward', i.e. backspace
             Interlocked.Decrement(ref CurrentBufferPos);
             UserInputBuffer.Remove(CurrentBufferPos, 1);
@@ -207,18 +200,14 @@ namespace ConsoleInteractive {
                 if (CurrentBufferPos < UserInputBuffer.Length) {
                     RedrawInput();
                     RemoveTrailingLetter();
-                    PrintDebugOperation("RemoveBackward was executed, redraw necessary.");
-                } else
-                    PrintDebugOperation("RemoveBackward was executed, non-redraw.");
-                
+                }
+
                 return;
             }
 
             Console.Write('\b');
             Console.Write(' ');
             RedrawInput();
-
-            PrintDebugOperation("RemoveBackward was executed.");
         }
 
         // Magic math I came up with.
@@ -237,13 +226,8 @@ namespace ConsoleInteractive {
         // does not necessarily fall into the correct position, as it is aligned to the console width. 
         private static int GetConsoleEndPosition() => InternalContext.CursorLeftPos + (UserInputBuffer.Length - CurrentBufferPos) % ConsoleWriteLimit;
 
-        private static void PrintDebugOperation(string preMessage) {
-            Debug.WriteLine(preMessage);
-            Debug.WriteLine($"CBP {CurrentBufferPos} | OBP {ConsoleOutputBeginPos} | IBL {UserInputBuffer.Length} | Modulo {UserInputBuffer.Length % ConsoleWriteLimit} | ConPos {InternalContext.CursorLeftPos}");
-        }
-
         private static void RemoveTrailingLetter() {
-            PrintDebugOperation("Trailing character is trimmed.");
+            Console.CursorVisible = false;
 
             if (ConsoleOutputBeginPos != 0) {
                 Console.SetCursorPosition(GetConsoleEndPosition(), InternalContext.CursorTopPos);
@@ -253,6 +237,8 @@ namespace ConsoleInteractive {
             
             Console.Write(' ');
             Console.SetCursorPosition(InternalContext.CursorLeftPos, InternalContext.CursorTopPos);
+            
+            Console.CursorVisible = true;
         }
 
         /// <summary>
