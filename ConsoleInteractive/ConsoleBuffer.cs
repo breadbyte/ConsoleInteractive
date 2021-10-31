@@ -96,7 +96,11 @@ namespace ConsoleInteractive {
         /// <param name="leftCursorPosition">The position the cursor was previously located.</param>
         internal static void RedrawInput() {
             lock (InternalContext.WriteLock) {
-               // Console.CursorVisible = false;
+                // Don't redraw if we don't have anything to redraw.
+                if (UserInputBuffer.Length == 0)
+                    return;
+                
+                // Console.CursorVisible = false;
                 Console.SetCursorPosition(0, InternalContext.CursorTopPos);
                 
                 PrintDebugOperation("Redraw requested");
