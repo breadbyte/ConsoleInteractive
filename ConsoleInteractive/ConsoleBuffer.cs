@@ -104,7 +104,7 @@ namespace ConsoleInteractive {
                 Console.CursorVisible = false;
                 Console.SetCursorPosition(0, InternalContext.CursorTopPos);
 
-                Console.Write(UserInputBuffer.ToString().Substring(ConsoleOutputBeginPos, ConsoleOutputLength));
+                Console.Write(UserInputBuffer.ToString(ConsoleOutputBeginPos, ConsoleOutputLength));
                 Console.SetCursorPosition(InternalContext.CursorLeftPos, InternalContext.CursorTopPos);
                 Console.CursorVisible = true;
             }
