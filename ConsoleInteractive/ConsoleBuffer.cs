@@ -157,14 +157,15 @@ namespace ConsoleInteractive {
         /// </summary>
         internal static void RemoveForward() {
             // If we're at the end of the buffer, do nothing.
-            if (CurrentBufferPos >= UserInputBuffer.Length)
+            if (CurrentBufferPos >= UserInputBuffer.Length || InternalContext.CursorLeftPos == ConsoleWriteLimit)
                 return;
 
             UserInputBuffer.Remove(CurrentBufferPos, 1);
-            bool isBufferLongerThanWriteLimit = (UserInputBuffer.Length - CurrentBufferPos) + InternalContext.CursorLeftPos >= ConsoleWriteLimit;
+            bool isBufferShorterThanWriteLimit = (UserInputBuffer.Length - CurrentBufferPos) + InternalContext.CursorLeftPos < ConsoleWriteLimit;
+            int cEndPos = GetConsoleEndPosition();
             
             // If the buffer isn't longer than the write limit
-            if (GetConsoleEndPosition() < ConsoleWriteLimit && !isBufferLongerThanWriteLimit) {
+            if (cEndPos < ConsoleWriteLimit && isBufferShorterThanWriteLimit) {
                 Interlocked.Decrement(ref ConsoleOutputLength); // Shorten the length so we don't get an OutOfBoundsException.
                 RemoveTrailingLetter();
                 RedrawInput();
@@ -180,34 +181,28 @@ namespace ConsoleInteractive {
         /// </summary>
         internal static void RemoveBackward() {
             // If we're at the start of the buffer, do nothing.
-            if (CurrentBufferPos == 0)
+            if (CurrentBufferPos == 0 || InternalContext.CursorLeftPos == 0)
                 return;
 
             // Remove 'backward', i.e. backspace
             Interlocked.Decrement(ref CurrentBufferPos);
+            InternalContext.DecrementLeftPos();
             UserInputBuffer.Remove(CurrentBufferPos, 1);
+            
+            bool isBufferShorterThanWriteLimit = (UserInputBuffer.Length - CurrentBufferPos) + InternalContext.CursorLeftPos <= ConsoleWriteLimit;
+            int cEndPos = GetConsoleEndPosition();
 
-            //Interlocked.Decrement(ref ConsoleOutputLength);
-            if (ConsoleOutputBeginPos != 0)
-                Interlocked.Decrement(ref ConsoleOutputBeginPos);
-            else {
-                Interlocked.Exchange(ref ConsoleOutputLength, UserInputBuffer.Length);
-                InternalContext.DecrementLeftPos();
-                Console.Write(' ');
-                Console.Write('\b');
-
-                // We need to redraw because there's content in front of us.
-                if (CurrentBufferPos < UserInputBuffer.Length) {
-                    RedrawInput();
-                    RemoveTrailingLetter();
-                }
-
-                return;
+            // If the buffer isn't longer than the write limit
+            if (cEndPos < ConsoleWriteLimit && isBufferShorterThanWriteLimit) {
+                Interlocked.Decrement(ref ConsoleOutputLength);
+                RemoveTrailingLetter();
+                RedrawInput();
             }
 
-            Console.Write('\b');
-            Console.Write(' ');
-            RedrawInput();
+            // Redraw by default.
+            else {
+                RedrawInput();
+            }
         }
 
         // Magic math I came up with.
