@@ -284,7 +284,7 @@ namespace ConsoleInteractive {
         }
 
         internal static void MoveToEndBufferPosition() {
-            if (UserInputBuffer.Length <= InternalContext.CursorLeftPosLimit) {
+            if (UserInputBuffer.Length < InternalContext.CursorLeftPosLimit) {
                 Interlocked.Exchange(ref CurrentBufferPos, UserInputBuffer.Length);
                 Interlocked.Exchange(ref ConsoleOutputBeginPos, 0);
                 Interlocked.Exchange(ref ConsoleOutputLength, UserInputBuffer.Length);
