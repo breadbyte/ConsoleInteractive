@@ -98,20 +98,18 @@ namespace ConsoleInteractive {
                         lock (InternalContext.WriteLock)
                             ConsoleBuffer.MoveCursorForward();
                         break;
-                    case ConsoleKey.DownArrow:
-                        Debugger.Break();
-                        break;
                     default:
                         token.ThrowIfCancellationRequested();
 
-                        // If the keypress doesn't map to any Unicode characters.
+                        // If the keypress doesn't map to any Unicode characters, or invalid characters.
                         switch (k.KeyChar) {
                             case '\0':
                             case '\t':
                             case '\r':
                             case '\n':
-                                break;
+                                return;
                         }
+                        
 
                         lock (InternalContext.WriteLock) {
                             ConsoleBuffer.Insert(k.KeyChar);
