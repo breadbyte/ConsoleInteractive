@@ -27,11 +27,20 @@ ConsoleReader.MessageReceived += (sender, s) => {
 // Start the printing thread.
 PrintingThread.Start();
 ```
+
+---
+
+For formatted output, use [Minecraft's color and formatting code format.](https://minecraft.fandom.com/wiki/Formatting_codes#Color_codes)
+```cs
+    ConsoleWriter.WriteLineFormatted("§aText §cwith §bMixed §1C§2o§3l§4o§5r§6s§a!");
+```
+will show up as the following: ![image](https://user-images.githubusercontent.com/14045257/139871772-a3e4f327-c769-497e-976f-b7231fcc18ff.png)
+
 ## Note
-It is important that you use the `ConsoleInteractive.ConsoleWriter` and `ConsoleInteractive.ConsoleReader` classes. 
+It is important that you use the `ConsoleInteractive.ConsoleWriter` and `ConsoleInteractive.ConsoleReader` classes only. 
 
 Mixing and matching with `System.Console` is not supported nor recommended.
 
 ## Demo
 Check out an asciicast demo here!
-[![asciicast](https://asciinema.org/a/T1G1OWROPIpWB5rViZ0UQiaOJ.png)](https://asciinema.org/a/T1G1OWROPIpWB5rViZ0UQiaOJ)
+[![asciicast](https://asciinema.org/a/XYhksfTOiKKKwoAD5vjQnb6J0.png)](https://asciinema.org/a/XYhksfTOiKKKwoAD5vjQnb6J0)
