@@ -9,14 +9,14 @@ namespace ConsoleInteractive {
         /// <summary>
         /// Invoked when a message is received.
         /// </summary>
-        public static event EventHandler<string> MessageReceived;
+        public static event EventHandler<string>? MessageReceived;
 
         /// <summary>
         /// Starts a new Console Reader thread.
         /// </summary>
         /// <param name="cancellationToken">Exits from the reader thread when cancelled.</param>
         public static void BeginReadThread(CancellationToken cancellationToken) {
-            var t = new Thread(new ParameterizedThreadStart(KeyListener));
+            var t = new Thread(new ParameterizedThreadStart(KeyListener!));
             t.Name = "ConsoleInteractive.ConsoleReader Reader Thread";
             t.Start(cancellationToken);
         }
