@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -13,7 +14,7 @@ namespace ConsoleInteractive {
         /// <summary>
         /// Starts a new Console Reader thread.
         /// </summary>
-        /// <param name="cancellationToken"></param>
+        /// <param name="cancellationToken">Exits from the reader thread when cancelled.</param>
         public static void BeginReadThread(CancellationToken cancellationToken) {
             var t = new Thread(new ParameterizedThreadStart(KeyListener));
             t.Name = "ConsoleInteractive.ConsoleReader Reader Thread";
@@ -23,13 +24,17 @@ namespace ConsoleInteractive {
         /// <summary>
         /// Listens for keypresses and acts accordingly.
         /// </summary>
-        /// <param name="cancellationToken"></param>
+        /// <param name="cancellationToken">Exits from the key listener once cancelled.</param>
         private static void KeyListener(object cancellationToken) {
             CancellationToken token = (CancellationToken)cancellationToken!;
 
             while (!token.IsCancellationRequested) {
                 token.ThrowIfCancellationRequested();
 
+                // Guard against window resize
+                InternalContext.CursorLeftPosLimit = Console.BufferWidth;
+                InternalContext.CursorTopPosLimit = Console.BufferHeight;
+                
                 while (Console.KeyAvailable == false) {
                     token.ThrowIfCancellationRequested();
                     continue;
@@ -45,129 +50,70 @@ namespace ConsoleInteractive {
                         token.ThrowIfCancellationRequested();
 
                         lock (InternalContext.WriteLock) {
-                            InternalContext.ClearVisibleUserInput();
-
-                            MessageReceived?.Invoke(null, InternalContext.UserInputBuffer.ToString());
+                            ConsoleBuffer.ClearVisibleUserInput();
+                            var input = ConsoleBuffer.FlushBuffer();
+                            
+                            MessageReceived?.Invoke(null, input);
 
                             /*
                              * The user can call cancellation after a command on enter.
                              * This helps us safely exit the reader thread.
                              */
                             if (token.IsCancellationRequested) {
-                                InternalContext.UserInputBuffer.Clear();
-                                break;
+                                return;
                             }
-
-                            InternalContext.UserInputBuffer.Clear();
                         }
-
                         break;
                     case ConsoleKey.Backspace:
                         token.ThrowIfCancellationRequested();
-                        if (Console.CursorLeft == 0)
-                            break;
-
                         lock (InternalContext.WriteLock) {
-                            var prevPos = Console.CursorLeft;
-                            Console.CursorVisible = false;
-                            InternalContext.UserInputBuffer.Remove(Console.CursorLeft - 1, 1);
-                            Console.Write("\b \b");
-                            Console.Write(InternalContext.UserInputBuffer.ToString()[Console.CursorLeft..] + " ");
-
-                            Console.SetCursorPosition(prevPos - 1, Console.CursorTop);
-                            Console.CursorVisible = true;
+                            ConsoleBuffer.RemoveBackward();
                         }
-
                         break;
                     case ConsoleKey.Delete:
                         token.ThrowIfCancellationRequested();
-                        if (Console.CursorLeft == InternalContext.UserInputBuffer.Length)
-                            break;
-
                         lock (InternalContext.WriteLock) {
-                            var prevPos = Console.CursorLeft;
-                            Console.CursorVisible = false;
-
-                            InternalContext.UserInputBuffer.Remove(Console.CursorLeft, 1);
-                            Console.Write(InternalContext.UserInputBuffer.ToString()[Console.CursorLeft..] + " ");
-
-                            Console.SetCursorPosition(prevPos, Console.CursorTop);
-                            Console.CursorVisible = true;
+                            ConsoleBuffer.RemoveForward();
                         }
-
                         break;
                     case ConsoleKey.End:
                         token.ThrowIfCancellationRequested();
-                        lock (InternalContext.WriteLock)
-                            Console.CursorLeft = InternalContext.UserInputBuffer.Length;
+                        lock (InternalContext.WriteLock) {
+                            ConsoleBuffer.MoveToEndBufferPosition();
+                        }
                         break;
                     case ConsoleKey.Home:
                         token.ThrowIfCancellationRequested();
-                        lock (InternalContext.WriteLock)
-                            Console.CursorLeft = 0;
+                        lock (InternalContext.WriteLock) {
+                            ConsoleBuffer.MoveToStartBufferPosition();
+                        }
                         break;
                     case ConsoleKey.LeftArrow:
                         token.ThrowIfCancellationRequested();
-                        if (Console.CursorLeft == 0)
-                            break;
-
-                        lock (InternalContext.WriteLock) {
-
-                            if (k.Modifiers.HasFlag(ConsoleModifiers.Control)) {
-                                var cts = InternalContext.UserInputBuffer.ToString()[
-                                    ..(Console.CursorLeft - 1 < 0 ? 0 : Console.CursorLeft - 1)];
-                                Console.SetCursorPosition((cts.LastIndexOf(' ') + 1), Console.CursorTop);
-                                break;
-                            }
-
-                            Console.SetCursorPosition(Console.CursorLeft - 1, Console.CursorTop);
-                        }
-
+                        lock (InternalContext.WriteLock)
+                            ConsoleBuffer.MoveCursorBackward();
                         break;
                     case ConsoleKey.RightArrow:
                         token.ThrowIfCancellationRequested();
-                        if (InternalContext.UserInputBuffer.Length <= Console.CursorLeft)
-                            break;
-
-                        lock (InternalContext.WriteLock) {
-                            if (k.Modifiers.HasFlag(ConsoleModifiers.Control)) {
-                                var cts = InternalContext.UserInputBuffer.ToString()[(Console.CursorLeft)..];
-                                var indexOf = cts.IndexOf(' ');
-                                Console.SetCursorPosition(
-                                    indexOf == -1
-                                        ? InternalContext.UserInputBuffer.Length
-                                        : indexOf + 1 + Console.CursorLeft,
-                                    Console.CursorTop);
-                                break;
-                            }
-
-                            Console.SetCursorPosition(Console.CursorLeft + 1, Console.CursorTop);
-                        }
-
+                        lock (InternalContext.WriteLock)
+                            ConsoleBuffer.MoveCursorForward();
                         break;
                     default:
                         token.ThrowIfCancellationRequested();
 
-                        // For special events where the keypress actually sends a keycode.
-                        switch (k.Key) {
-                            case ConsoleKey.Tab:
-                                continue;
+                        // If the keypress doesn't map to any Unicode characters, or invalid characters.
+                        switch (k.KeyChar) {
+                            case '\0':
+                            case '\t':
+                            case '\r':
+                            case '\n':
+                                return;
                         }
-
-                        // If the keypress doesn't map to any Unicode characters.
-                        if (k.KeyChar == '\0')
-                            break;
+                        
 
                         lock (InternalContext.WriteLock) {
-                            Console.CursorVisible = false;
-                            InternalContext.UserInputBuffer.Insert(Console.CursorLeft, k.KeyChar);
-                            Console.Write(InternalContext.UserInputBuffer.ToString()[Console.CursorLeft..]);
-
-                            Console.SetCursorPosition(Console.CursorLeft, Console.CursorTop);
-
-                            Console.CursorVisible = true;
+                            ConsoleBuffer.Insert(k.KeyChar);
                         }
-
                         break;
                 }
             }

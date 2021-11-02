@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -10,7 +11,13 @@ using PInvoke;
 
 namespace ConsoleInteractive {
     public static class ConsoleWriter {
-        public static void SetWindowsConsoleAnsi() {
+
+        public static void Init() {
+            SetWindowsConsoleAnsi();
+            Console.Clear();
+        }
+
+        private static void SetWindowsConsoleAnsi() {
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) {
                 Kernel32.GetConsoleMode(Kernel32.GetStdHandle(Kernel32.StdHandle.STD_OUTPUT_HANDLE), out var cModes);
                 Kernel32.SetConsoleMode(Kernel32.GetStdHandle(Kernel32.StdHandle.STD_OUTPUT_HANDLE), cModes | Kernel32.ConsoleBufferModes.ENABLE_VIRTUAL_TERMINAL_PROCESSING);
@@ -30,13 +37,15 @@ namespace ConsoleInteractive {
     internal static class InternalWriter {
         private static void Write(object? value) {
             lock (InternalContext.WriteLock) {
-                var cursorLeftPrevious = Console.CursorLeft;
-
-                InternalContext.ClearVisibleUserInput();
-                Console.Write(value + "\n");
-                Console.SetCursorPosition(0, Console.CursorTop);
-                Console.Write(InternalContext.UserInputBuffer);
-                Console.SetCursorPosition(cursorLeftPrevious, Console.CursorTop);
+                var currentCursorPos = InternalContext.CursorLeftPos;
+                
+                ConsoleBuffer.ClearVisibleUserInput();
+                Console.WriteLine(value);
+                InternalContext.IncrementTopPos();
+                
+                ConsoleBuffer.RedrawInput();
+                Console.SetCursorPosition(currentCursorPos, InternalContext.CursorTopPos);
+                InternalContext.SetLeftCursorPosition(currentCursorPos);
             }
         }
 
