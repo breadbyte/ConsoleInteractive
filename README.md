@@ -1,4 +1,4 @@
-# ConsoleInteractive
+# ConsoleInteractive [![Nuget](https://buildstats.info/nuget/ConsoleInteractivePrompt)](https://www.nuget.org/packages/ConsoleInteractivePrompt/)
 A C# library that allows you to write and read from the console simultaneously
 
 ## Usage
