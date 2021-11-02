@@ -2,6 +2,11 @@
 
     <PropertyGroup>
         <TargetFramework>net5.0</TargetFramework>
+        <Title>ConsoleInteractive</Title>
+        <Authors>breadbyte</Authors>
+        <Description>A C# library that allows you to write and read from the console simultaneously</Description>
+        <RepositoryUrl>https://github.com/breadbyte/ConsoleInteractive</RepositoryUrl>
+        <Nullable>enable</Nullable>
     </PropertyGroup>
 
     <ItemGroup>

@@ -18,7 +18,7 @@ namespace ConsoleInteractiveDemo {
                 ConsoleWriter.WriteLine("[T1] Hello World after 11 seconds!");
                 Thread.Sleep(5000);
                 ConsoleWriter.WriteLine("[T1] Hello World after 16 seconds!");
-            }));
+            })) {IsBackground = true};
             var t2 = new Thread(new ThreadStart(() => {
                 ConsoleWriter.WriteLine("[T2] Hello from Thread 2!");
                 Thread.Sleep(3000);
@@ -37,7 +37,7 @@ namespace ConsoleInteractiveDemo {
                 ConsoleWriter.WriteLine("[T2] 5 Filler...");
                 ConsoleWriter.WriteLine("[T2] 6 Filler...");
                 ConsoleWriter.WriteLine("[T2] 7 Filler...");
-            }));
+            })) {IsBackground = true};
 
             var tF = new Thread(new ThreadStart(() => {
                 ConsoleWriter.WriteLineFormatted("[T3] ---");
@@ -90,13 +90,13 @@ namespace ConsoleInteractiveDemo {
                 ConsoleWriter.WriteLineFormatted("[T3] Actual: §ktesting1§ktesting2§rtesting3§k§r");
                 ConsoleWriter.WriteLine         ("[T3] Truth:  testing4§ktesting5§rtesting6§k§rtestafter §ka§ke§ri§ro§ku§r  textafter");
                 ConsoleWriter.WriteLineFormatted("[T3] Actual: testing4§k§m§etesting5§rtesting6§k§rtestafter §ka§ke§ri§ro§ku§r  textafter");
-            }));
-            //t1.Start();
-            //t2.Start();
-            //tF.Start();
+            })) {IsBackground = true};
+            
+            t1.Start();
+            t2.Start();
+            tF.Start();
             
             ConsoleReader.BeginReadThread(cts.Token);
-            
             ConsoleReader.MessageReceived += (sender, s) => {
                 if (s.Equals("cancel"))
                     cts.Cancel();
