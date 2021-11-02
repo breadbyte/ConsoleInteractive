@@ -100,12 +100,13 @@ namespace ConsoleInteractive {
                 // Don't redraw if we don't have anything to redraw.
                 if (UserInputBuffer.Length == 0)
                     return;
-                
+
                 Console.CursorVisible = false;
                 Console.SetCursorPosition(0, InternalContext.CursorTopPos);
 
                 Console.Write(UserInputBuffer.ToString(ConsoleOutputBeginPos, ConsoleOutputLength));
                 Console.SetCursorPosition(InternalContext.CursorLeftPos, InternalContext.CursorTopPos);
+
                 Console.CursorVisible = true;
             }
         }
@@ -161,19 +162,7 @@ namespace ConsoleInteractive {
                 return;
 
             UserInputBuffer.Remove(CurrentBufferPos, 1);
-            bool isBufferShorterThanWriteLimit = (UserInputBuffer.Length - CurrentBufferPos) + InternalContext.CursorLeftPos < ConsoleWriteLimit;
-            int cEndPos = GetConsoleEndPosition();
-            
-            // If the buffer isn't longer than the write limit
-            if (cEndPos < ConsoleWriteLimit && isBufferShorterThanWriteLimit) {
-                Interlocked.Decrement(ref ConsoleOutputLength); // Shorten the length so we don't get an OutOfBoundsException.
-                RemoveTrailingLetter();
-                RedrawInput();
-            }
-            
-            // Redraw by default.
-            else
-                RedrawInput();
+            RedrawWithTrailingCheck();
         }
 
         /// <summary>
@@ -188,21 +177,29 @@ namespace ConsoleInteractive {
             Interlocked.Decrement(ref CurrentBufferPos);
             InternalContext.DecrementLeftPos();
             UserInputBuffer.Remove(CurrentBufferPos, 1);
-            
-            bool isBufferShorterThanWriteLimit = (UserInputBuffer.Length - CurrentBufferPos) + InternalContext.CursorLeftPos <= ConsoleWriteLimit;
-            int cEndPos = GetConsoleEndPosition();
 
+            if (CurrentBufferPos == UserInputBuffer.Length) {
+                Console.Write(' ');
+                Console.Write('\b');
+                Interlocked.Decrement(ref ConsoleOutputLength);
+            } else
+                RedrawWithTrailingCheck();
+        }
+
+        private static void RedrawWithTrailingCheck() {
+            bool isBufferShorterThanWriteLimit = (UserInputBuffer.Length - CurrentBufferPos) + InternalContext.CursorLeftPos < ConsoleWriteLimit;
+            int cEndPos = GetConsoleEndPosition();
+            
             // If the buffer isn't longer than the write limit
             if (cEndPos < ConsoleWriteLimit && isBufferShorterThanWriteLimit) {
-                Interlocked.Decrement(ref ConsoleOutputLength);
+                Interlocked.Decrement(ref ConsoleOutputLength); // Shorten the length so we don't get an OutOfBoundsException.
                 RemoveTrailingLetter();
                 RedrawInput();
             }
-
+            
             // Redraw by default.
-            else {
+            else
                 RedrawInput();
-            }
         }
 
         // Magic math I came up with.
