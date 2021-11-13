@@ -64,77 +64,78 @@ namespace ConsoleInteractive {
             CancellationToken token = (CancellationToken)cancellationToken!;
 
             while (!token.IsCancellationRequested) {
-                token.ThrowIfCancellationRequested();
+                if (token.IsCancellationRequested) return;
 
                 // Guard against window resize
                 InternalContext.CursorLeftPosLimit = Console.BufferWidth;
                 InternalContext.CursorTopPosLimit = Console.BufferHeight;
-                
+
                 while (Console.KeyAvailable == false) {
-                    token.ThrowIfCancellationRequested();
+                    if (token.IsCancellationRequested) return;
                     continue;
                 }
 
                 ConsoleKeyInfo k;
                 k = Console.ReadKey(true);
 
-                token.ThrowIfCancellationRequested();
+                if (token.IsCancellationRequested) return;
 
                 switch (k.Key) {
                     case ConsoleKey.Enter:
-                        token.ThrowIfCancellationRequested();
+                        if (token.IsCancellationRequested) return;
 
                         lock (InternalContext.WriteLock) {
                             ConsoleBuffer.ClearVisibleUserInput();
                             var input = ConsoleBuffer.FlushBuffer();
-                            
+
                             MessageReceived?.Invoke(null, input);
 
                             /*
                              * The user can call cancellation after a command on enter.
                              * This helps us safely exit the reader thread.
                              */
-                            if (token.IsCancellationRequested) {
-                                return;
-                            }
+                            if (token.IsCancellationRequested) return;
                         }
+
                         break;
                     case ConsoleKey.Backspace:
-                        token.ThrowIfCancellationRequested();
-                        lock (InternalContext.WriteLock) {
+                        if (token.IsCancellationRequested) return;
+                        lock (InternalContext.WriteLock)
                             ConsoleBuffer.RemoveBackward();
-                        }
+
                         break;
                     case ConsoleKey.Delete:
-                        token.ThrowIfCancellationRequested();
-                        lock (InternalContext.WriteLock) {
+                        if (token.IsCancellationRequested) return;
+                        lock (InternalContext.WriteLock)
                             ConsoleBuffer.RemoveForward();
-                        }
+
                         break;
                     case ConsoleKey.End:
-                        token.ThrowIfCancellationRequested();
-                        lock (InternalContext.WriteLock) {
+                        if (token.IsCancellationRequested) return;
+                        lock (InternalContext.WriteLock)
                             ConsoleBuffer.MoveToEndBufferPosition();
-                        }
+                        
                         break;
                     case ConsoleKey.Home:
-                        token.ThrowIfCancellationRequested();
-                        lock (InternalContext.WriteLock) {
+                        if (token.IsCancellationRequested) return;
+                        lock (InternalContext.WriteLock)
                             ConsoleBuffer.MoveToStartBufferPosition();
-                        }
+
                         break;
                     case ConsoleKey.LeftArrow:
-                        token.ThrowIfCancellationRequested();
+                        if (token.IsCancellationRequested) return;
                         lock (InternalContext.WriteLock)
                             ConsoleBuffer.MoveCursorBackward();
+                        
                         break;
                     case ConsoleKey.RightArrow:
-                        token.ThrowIfCancellationRequested();
+                        if (token.IsCancellationRequested) return;
                         lock (InternalContext.WriteLock)
                             ConsoleBuffer.MoveCursorForward();
+                        
                         break;
                     default:
-                        token.ThrowIfCancellationRequested();
+                        if (token.IsCancellationRequested) return;
 
                         // If the keypress doesn't map to any Unicode characters, or invalid characters.
                         switch (k.KeyChar) {
@@ -144,11 +145,12 @@ namespace ConsoleInteractive {
                             case '\n':
                                 return;
                         }
-                        
 
-                        lock (InternalContext.WriteLock) {
+
+                        lock (InternalContext.WriteLock)
                             ConsoleBuffer.Insert(k.KeyChar);
-                        }
+
+                        if (token.IsCancellationRequested) return;
                         break;
                 }
             }
