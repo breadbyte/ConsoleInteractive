@@ -35,15 +35,21 @@ namespace ConsoleInteractive {
     }
 
     internal static class InternalWriter {
-        private static void Write(object? value) {
+        private static void Write(string value) {
             lock (InternalContext.WriteLock) {
                 var currentCursorPos = InternalContext.CursorLeftPos;
                 
                 ConsoleBuffer.ClearVisibleUserInput();
                 Console.WriteLine(value);
-                InternalContext.IncrementTopPos();
+                int linesAdded = (value.Length / InternalContext.CursorLeftPosLimit) + 1;
+                
+                if (InternalContext.CursorTopPos + linesAdded >= InternalContext.CursorTopPosLimit)
+                    Interlocked.Exchange(ref InternalContext.CursorTopPos, InternalContext.CursorTopPosLimit - 1);
+                else 
+                    Interlocked.Add(ref InternalContext.CursorTopPos, linesAdded);
                 
                 ConsoleBuffer.RedrawInput();
+                
                 Console.SetCursorPosition(currentCursorPos, InternalContext.CursorTopPos);
                 InternalContext.SetLeftCursorPosition(currentCursorPos);
             }
@@ -114,7 +120,7 @@ namespace ConsoleInteractive {
              .Replace("§o", "\u001B[3m")  // Italic
              .Replace("§r", "\u001B[0m"); // Reset
 
-            Write(b);
+            Write(b.ToString());
         }
     }
 }

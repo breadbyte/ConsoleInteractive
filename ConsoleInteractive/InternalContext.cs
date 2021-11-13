@@ -14,6 +14,10 @@ namespace ConsoleInteractive {
         internal static volatile int CursorTopPosLimit = Console.BufferHeight;
 
         internal static void SetLeftCursorPosition(int leftPos) {
+            if (CursorTopPos == CursorTopPosLimit) {
+                Interlocked.Exchange(ref CursorTopPos, CursorTopPosLimit - 1);
+            }
+            
             Console.SetCursorPosition(leftPos, CursorTopPos);
             Interlocked.Exchange(ref CursorLeftPos, leftPos);
         }

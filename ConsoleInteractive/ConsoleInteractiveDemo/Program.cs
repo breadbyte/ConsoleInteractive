@@ -96,10 +96,10 @@ namespace ConsoleInteractiveDemo {
             t2.Start();
             tF.Start();
             
-            ConsoleReader.BeginReadThread(cts.Token);
+            ConsoleReader.BeginReadThread(cts);
             ConsoleReader.MessageReceived += (sender, s) => {
                 if (s.Equals("cancel"))
-                    cts.Cancel();
+                    ConsoleReader.StopReadThread();
             };
         }
     }
