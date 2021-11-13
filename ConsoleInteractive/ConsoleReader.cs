@@ -10,15 +10,50 @@ namespace ConsoleInteractive {
         /// Invoked when a message is received.
         /// </summary>
         public static event EventHandler<string>? MessageReceived;
+        
+        private static Thread? _readerThread;
+        private static CancellationTokenSource? _cancellationTokenSource;
 
         /// <summary>
         /// Starts a new Console Reader thread.
         /// </summary>
         /// <param name="cancellationToken">Exits from the reader thread when cancelled.</param>
-        public static void BeginReadThread(CancellationToken cancellationToken) {
-            var t = new Thread(new ParameterizedThreadStart(KeyListener!));
-            t.Name = "ConsoleInteractive.ConsoleReader Reader Thread";
-            t.Start(cancellationToken);
+        public static void BeginReadThread(CancellationTokenSource cancellationTokenSource) {
+            if (_readerThread is { IsAlive: true })  {
+                throw new InvalidOperationException("Console Reader thread is already running.");
+            }
+            
+            _cancellationTokenSource = cancellationTokenSource;
+            _readerThread = new Thread(new ParameterizedThreadStart(KeyListener!));
+            _readerThread.Name = "ConsoleInteractive.ConsoleReader Reader Thread";
+            _readerThread.Start(_cancellationTokenSource.Token);
+        }
+        
+        /// <summary>
+        /// Stops an existing Console Reader thread, if any.
+        /// </summary>
+        public static void StopReadThread() {
+            if (_readerThread is { IsAlive: false }) {
+                return;
+            }
+            
+            _cancellationTokenSource?.Cancel();
+        }
+
+        public static string RequestImmediateInput() {
+            AutoResetEvent autoEvent = new AutoResetEvent(false);
+            var bufferString = string.Empty;
+            
+            BeginReadThread(new CancellationTokenSource());
+            MessageReceived += (sender, s) => {
+                bufferString = s;
+                autoEvent.Set();
+            };
+            
+            autoEvent.WaitOne();
+            StopReadThread();
+            _readerThread!.Join();
+            return bufferString;
         }
 
         /// <summary>
