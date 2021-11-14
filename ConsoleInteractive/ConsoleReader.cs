@@ -10,6 +10,7 @@ namespace ConsoleInteractive {
         /// Invoked when a message is received.
         /// </summary>
         public static event EventHandler<string>? MessageReceived;
+        public static event EventHandler<ConsoleKey>? OnKeyInput;
         
         private static Thread? _readerThread;
         private static CancellationTokenSource? _cancellationTokenSource;
@@ -80,6 +81,8 @@ namespace ConsoleInteractive {
 
                 if (token.IsCancellationRequested) return;
 
+                OnKeyInput?.Invoke(null, k.Key);
+                
                 switch (k.Key) {
                     case ConsoleKey.Enter:
                         if (token.IsCancellationRequested) return;
@@ -143,7 +146,7 @@ namespace ConsoleInteractive {
                             case '\t':
                             case '\r':
                             case '\n':
-                                return;
+                                continue;
                         }
 
 
