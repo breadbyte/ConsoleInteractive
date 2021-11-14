@@ -15,6 +15,10 @@ namespace ConsoleInteractive {
         private static Thread? _readerThread;
         private static CancellationTokenSource? _cancellationTokenSource;
 
+        public static void SetInputVisible(bool visible) {
+            InternalContext.SuppressInput = !visible;
+        }
+
         /// <summary>
         /// Starts a new Console Reader thread.
         /// </summary>

@@ -12,6 +12,18 @@ namespace ConsoleInteractive {
         internal static volatile int CursorTopPos = 0;
         internal static volatile int CursorLeftPosLimit = Console.BufferWidth;
         internal static volatile int CursorTopPosLimit = Console.BufferHeight;
+        internal static volatile bool _suppressInput = false;
+        internal static bool SuppressInput {
+            get { return _suppressInput; }
+            set {
+                _suppressInput = value;
+                if (value) {
+                    ConsoleBuffer.ClearVisibleUserInput();
+                }
+                ConsoleBuffer.RedrawInput();
+                ConsoleBuffer.MoveToEndBufferPosition();
+            }
+        }
 
         internal static void SetLeftCursorPosition(int leftPos) {
             if (CursorTopPos == CursorTopPosLimit) {

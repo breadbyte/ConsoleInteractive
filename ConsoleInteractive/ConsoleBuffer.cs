@@ -80,12 +80,15 @@ namespace ConsoleInteractive {
             }
             else {
                 Interlocked.Increment(ref ConsoleOutputLength);
-                Console.Write(c);
+                if (!InternalContext.SuppressInput)
+                    Console.Write(c);
 
                 if (CurrentBufferPos < UserInputBuffer.Length) {
                     RedrawInput();
                 }
             }
+
+            if (InternalContext.SuppressInput) return;
 
             // Increment the console cursor.
             InternalContext.IncrementLeftPos();
@@ -97,6 +100,8 @@ namespace ConsoleInteractive {
         /// <param name="leftCursorPosition">The position the cursor was previously located.</param>
         internal static void RedrawInput() {
             lock (InternalContext.WriteLock) {
+                if (InternalContext.SuppressInput) return;
+                
                 // Don't redraw if we don't have anything to redraw.
                 if (UserInputBuffer.Length == 0)
                     return;
@@ -127,6 +132,7 @@ namespace ConsoleInteractive {
                 RedrawInput();
             }
             
+            if (InternalContext.SuppressInput) return;
             InternalContext.IncrementLeftPos();
         }
 
@@ -149,7 +155,8 @@ namespace ConsoleInteractive {
                 
                 RedrawInput();
             }
-
+            
+            if (InternalContext.SuppressInput) return;
             InternalContext.DecrementLeftPos();
         }
 
@@ -170,23 +177,30 @@ namespace ConsoleInteractive {
         /// </summary>
         internal static void RemoveBackward() {
             // If we're at the start of the buffer, do nothing.
-            if (CurrentBufferPos == 0 || InternalContext.CursorLeftPos == 0)
+            if (CurrentBufferPos == 0 || InternalContext.CursorLeftPos == 0 && !InternalContext._suppressInput)
                 return;
 
             // Remove 'backward', i.e. backspace
             Interlocked.Decrement(ref CurrentBufferPos);
-            InternalContext.DecrementLeftPos();
             UserInputBuffer.Remove(CurrentBufferPos, 1);
-
+            
+            if (!InternalContext.SuppressInput)
+                InternalContext.DecrementLeftPos();
+            
             if (CurrentBufferPos == UserInputBuffer.Length) {
-                Console.Write(' ');
-                Console.Write('\b');
+                if (!InternalContext.SuppressInput) {
+                    Console.Write(' ');
+                    Console.Write('\b');
+                }
+
                 Interlocked.Decrement(ref ConsoleOutputLength);
             } else
                 RedrawWithTrailingCheck();
         }
 
         private static void RedrawWithTrailingCheck() {
+            if (InternalContext.SuppressInput) return;            
+            
             bool isBufferShorterThanWriteLimit = (UserInputBuffer.Length - CurrentBufferPos) + InternalContext.CursorLeftPos < ConsoleWriteLimit;
             int cEndPos = GetConsoleEndPosition();
             
