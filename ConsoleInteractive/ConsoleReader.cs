@@ -26,6 +26,10 @@ namespace ConsoleInteractive {
             };
         }
 
+        public static void ClearBuffer() {
+            ConsoleBuffer.FlushBuffer();
+        }
+
         /// <summary>
         /// Starts a new Console Reader thread.
         /// </summary>
