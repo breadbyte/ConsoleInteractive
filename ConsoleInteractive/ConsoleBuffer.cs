@@ -52,7 +52,7 @@ namespace ConsoleInteractive {
      */
     internal static class ConsoleBuffer {
         internal static StringBuilder UserInputBuffer = new();
-        private static volatile int CurrentBufferPos = 0;
+        internal static volatile int CurrentBufferPos = 0;
         private static volatile int ConsoleOutputBeginPos = 0;
         private static volatile int ConsoleOutputLength = 0;
         private static volatile int ConsoleWriteLimit = InternalContext.CursorLeftPosLimit - 1;

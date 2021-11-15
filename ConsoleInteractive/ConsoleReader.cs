@@ -19,6 +19,13 @@ namespace ConsoleInteractive {
             InternalContext.SuppressInput = !visible;
         }
 
+        public static Buffer GetBufferContent() {
+            return new Buffer() {
+                Text = ConsoleBuffer.UserInputBuffer.ToString(),
+                CursorPosition = ConsoleBuffer.CurrentBufferPos
+            };
+        }
+
         /// <summary>
         /// Starts a new Console Reader thread.
         /// </summary>
@@ -161,6 +168,11 @@ namespace ConsoleInteractive {
                         break;
                 }
             }
+        }
+        
+        public record Buffer {
+            public string Text { get; init; }
+            public int CursorPosition { get; init; }
         }
     }
 }
