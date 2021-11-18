@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.Text;
 using System.Threading;
 
@@ -52,11 +54,13 @@ namespace ConsoleInteractive {
      */
     internal static class ConsoleBuffer {
         internal static StringBuilder UserInputBuffer = new();
+        internal static StringBuilder UserInputBufferCopy = new();
+        
         internal static volatile int CurrentBufferPos = 0;
         private static volatile int ConsoleOutputBeginPos = 0;
         private static volatile int ConsoleOutputLength = 0;
         private static volatile int ConsoleWriteLimit = InternalContext.CursorLeftPosLimit - 1;
-        
+
         /// <summary>
         /// Inserts a character in the user input buffer.
         /// </summary>
@@ -93,6 +97,13 @@ namespace ConsoleInteractive {
             // Increment the console cursor.
             InternalContext.IncrementLeftPos();
         }
+        
+        internal static void SetBufferContent(string content) {
+            FlushBuffer();
+            UserInputBuffer.Append(content);
+            MoveToEndBufferPosition();
+            RedrawInput();
+        }
 
         /// <summary>
         /// Redraws the current user input state.
@@ -109,6 +120,8 @@ namespace ConsoleInteractive {
                 Console.CursorVisible = false;
                 Console.SetCursorPosition(0, InternalContext.CursorTopPos);
 
+                Debug.Assert(ConsoleOutputLength != 0);
+                
                 Console.Write(UserInputBuffer.ToString(ConsoleOutputBeginPos, ConsoleOutputLength));
                 Console.SetCursorPosition(InternalContext.CursorLeftPos, InternalContext.CursorTopPos);
 
@@ -309,5 +322,69 @@ namespace ConsoleInteractive {
             Interlocked.Exchange(ref CurrentBufferPos, UserInputBuffer.Length);
             RedrawInput();
         }
+        
+        
+        internal static volatile int BufferBackreadPos = -1;
+        private const int BackreadBufferLimit = 8;
+        internal static List<string> BackreadBuffer = new List<string>(BackreadBufferLimit);
+        
+        public static void IncrementBackreadPos() {
+            Interlocked.Increment(ref BufferBackreadPos);
+            
+            if (BufferBackreadPos >= BackreadBuffer.Count)
+                Interlocked.Exchange(ref BufferBackreadPos, 0);
+        }
+        
+        private static void DecrementBackreadPos() {
+            if (BufferBackreadPos == -1) return;
+            Interlocked.Decrement(ref BufferBackreadPos);
+        }
+        
+        public static void ClearBackreadBuffer() {
+            BackreadBuffer.Clear();
+            UserInputBufferCopy.Clear();
+            BufferBackreadPos = -1;
+        }
+
+        /// <summary>
+        /// Moves the backread backwards. Equivalent to pressing the Up arrow.
+        /// </summary>
+        /// <returns>The string in the backread buffer.</returns>
+        public static string GetBackreadBackwards() {
+            if (BackreadBuffer.Count == 0) return UserInputBuffer.ToString();
+            
+            if (BufferBackreadPos == -1)
+                UserInputBufferCopy = new StringBuilder(UserInputBuffer.ToString());
+            
+            IncrementBackreadPos();
+            return BackreadBuffer[BufferBackreadPos];
+        }
+        
+        /// <summary>
+        /// Moves the backread forward. Equivalent to pressing the Down arrow.
+        /// </summary>
+        /// <returns>The string in the backread buffer.</returns>
+        public static string GetBackreadForwards() {
+            if (BufferBackreadPos is -1 or 0) {
+                if (BufferBackreadPos == 0)
+                    DecrementBackreadPos();
+                
+                return UserInputBufferCopy.ToString();
+            }
+
+            DecrementBackreadPos();
+            return BackreadBuffer[BufferBackreadPos];
+        }
+        
+        /// <summary>
+        /// Adds a string to the backread buffer.
+        /// </summary>
+        /// <param name="message">The string to be added.</param>
+        public static void AddToBackreadBuffer(string message) {
+            BackreadBuffer.Add(message);
+            if (BackreadBuffer.Count > BackreadBufferLimit)
+                BackreadBuffer.RemoveAt(0);
+        }
+
     }
 }

@@ -54,6 +54,8 @@ namespace ConsoleInteractive {
             }
             
             _cancellationTokenSource?.Cancel();
+            ConsoleBuffer.ClearBackreadBuffer();
+            ConsoleBuffer.FlushBuffer();
         }
 
         public static string RequestImmediateInput() {
@@ -105,7 +107,9 @@ namespace ConsoleInteractive {
                         lock (InternalContext.WriteLock) {
                             ConsoleBuffer.ClearVisibleUserInput();
                             var input = ConsoleBuffer.FlushBuffer();
+                            ConsoleBuffer.UserInputBufferCopy.Clear();
 
+                            ConsoleBuffer.AddToBackreadBuffer(input);
                             MessageReceived?.Invoke(null, input);
 
                             /*
@@ -150,6 +154,22 @@ namespace ConsoleInteractive {
                         if (token.IsCancellationRequested) return;
                         lock (InternalContext.WriteLock)
                             ConsoleBuffer.MoveCursorForward();
+                        
+                        break;
+                    case ConsoleKey.UpArrow:
+                        if (token.IsCancellationRequested) return;
+                        lock (InternalContext.WriteLock) {
+                            if (ConsoleBuffer.BackreadBuffer.Count == 0) break;
+                            ConsoleBuffer.SetBufferContent(ConsoleBuffer.GetBackreadBackwards());
+                        }
+
+                        break;
+                    case ConsoleKey.DownArrow:
+                        if (token.IsCancellationRequested) return;
+                        lock (InternalContext.WriteLock) {
+                            if (ConsoleBuffer.BackreadBuffer.Count == 0) break;
+                            ConsoleBuffer.SetBufferContent(ConsoleBuffer.GetBackreadForwards());
+                        }
                         
                         break;
                     default:
