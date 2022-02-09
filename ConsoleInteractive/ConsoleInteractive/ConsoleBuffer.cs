@@ -343,7 +343,7 @@ namespace ConsoleInteractive {
 
                 bool requireCompleteClear = UserInputBuffer.Length > UserInputBufferMaxLength;
 
-                for (int i = 0; i <= (requireCompleteClear ? UserInputBufferMaxLength : UserInputBuffer.Length); i++) {
+                for (int i = 0; i <= (requireCompleteClear ? UserInputBufferMaxLength : UserInputBuffer.Length + 1); i++) {
                     Console.Write(' ');
                 }
 
