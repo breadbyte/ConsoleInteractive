@@ -67,30 +67,29 @@ namespace ConsoleInteractive {
         internal static StringBuilder UserInputBufferCopy = new();
         
         private static string Prefix = "> ";
-        internal static int PrefixLength = 2;
-        internal static StringBuilder PresentBuffer = new(Prefix);
+        internal static StringBuilder OutputBuffer = new();
         
         internal static volatile int CurrentBufferPos = 0;
-        private static volatile int ConsoleOutputBeginPos = 1;
-        private static volatile int ConsoleOutputLength = 0;
+        private static volatile int OutputAnchor = 1;
+        private static volatile int OutputLength = 0;
         
-        private static volatile int PresentBufferMaxLength = InternalContext.CursorLeftPosLimit - 1;
-        private static volatile int UserInputBufferMaxLength = PresentBufferMaxLength - PrefixLength;
+        private static volatile int OutputBufferMaxLength = InternalContext.CursorLeftPosLimit - 1;
+        private static volatile int UserInputBufferMaxLength = OutputBufferMaxLength - Prefix.Length;
 
         internal static void PrintDebug([CallerMemberName] string caller = "") {
             Debug.WriteLine($"----\n" +
                             $"Called from: {caller}\n" +
                             $"ConsoleCurrentLeftPos {InternalContext.CurrentCursorLeftPos}\n" +
                             $"CurrentBufferPos: {CurrentBufferPos}\n" +
-                            $"ConsoleOutputBeginPos: {ConsoleOutputBeginPos}\n" +
-                            $"ConsoleOutputLength: {ConsoleOutputLength}\n" +
+                            $"ConsoleOutputBeginPos: {OutputAnchor}\n" +
+                            $"ConsoleOutputLength: {OutputLength}\n" +
                             $"CursorLeftPosLimit: {InternalContext.CursorLeftPosLimit}\n" +
                             $"----\n");
         }
 
         internal static void Init() {
-            Console.Write(PresentBuffer);
-            Interlocked.Exchange(ref InternalContext.CurrentCursorLeftPos, PrefixLength);
+            Console.Write(OutputBuffer);
+            Interlocked.Exchange(ref InternalContext.CurrentCursorLeftPos, Prefix.Length);
             PrintDebug();
         }
 
@@ -104,23 +103,23 @@ namespace ConsoleInteractive {
             Interlocked.Increment(ref CurrentBufferPos);
 
             // If we're inserting outside the buffer (buffer len is gt/eq to console width)
-            if (PresentBufferMaxLength <= UserInputBuffer.Length + 1) {
+            if (OutputBufferMaxLength <= UserInputBuffer.Length + 1) {
                 
                 // If we're not at the end of the string, move the output forward.
-                if (ConsoleOutputLength != UserInputBufferMaxLength)
-                    Interlocked.Increment(ref ConsoleOutputLength);
+                if (OutputLength != UserInputBufferMaxLength)
+                    Interlocked.Increment(ref OutputLength);
                 
                 Console.SetCursorPosition(0, InternalContext.CurrentCursorTopPos);
                 
-                // If we're at the end of the console, increment ConsoleOutputBeginPos.
-                if (InternalContext.CurrentCursorLeftPos == PresentBufferMaxLength)
-                    Interlocked.Increment(ref ConsoleOutputBeginPos);
+                // If we're at the end of the console, increment OutputAnchor.
+                if (InternalContext.CurrentCursorLeftPos == OutputBufferMaxLength)
+                    Interlocked.Increment(ref OutputAnchor);
 
                 RedrawInput();
             }
             // If we're inserting inside the buffer
             else {
-                Interlocked.Increment(ref ConsoleOutputLength);
+                Interlocked.Increment(ref OutputLength);
                 
                 // Don't redraw if we don't need to
                 if (!InternalContext.SuppressInput)
@@ -160,12 +159,12 @@ namespace ConsoleInteractive {
                 Console.CursorVisible = false;
                 Console.SetCursorPosition(0, InternalContext.CurrentCursorTopPos);
 
-                Debug.Assert(ConsoleOutputLength != 0);
+                Debug.Assert(OutputLength != 0);
                 
                 PrintDebug();
 
                 RedrawPresentBuffer();
-                Console.Write(PresentBuffer);
+                Console.Write(OutputBuffer);
                 Console.SetCursorPosition(InternalContext.CurrentCursorLeftPos, InternalContext.CurrentCursorTopPos);
 
                 Console.CursorVisible = true;
@@ -173,9 +172,9 @@ namespace ConsoleInteractive {
         }
 
         private static void RedrawPresentBuffer() {
-            Prefix = ConsoleOutputBeginPos > 0 ? "< " : "> ";
-            PresentBuffer.Clear();
-            PresentBuffer.Append($"{Prefix}{UserInputBuffer.ToString(ConsoleOutputBeginPos, ConsoleOutputLength - 1)}");
+            Prefix = OutputAnchor > 0 ? "< " : "> ";
+            OutputBuffer.Clear();
+            OutputBuffer.Append($"{Prefix}{UserInputBuffer.ToString(OutputAnchor, OutputLength - 1)}");
         }
 
 
@@ -191,7 +190,7 @@ namespace ConsoleInteractive {
             
             // If we have extra buffer at the end
             if (InternalContext.CurrentCursorLeftPos == UserInputBufferMaxLength && UserInputBuffer.Length > UserInputBufferMaxLength) {
-                Interlocked.Increment(ref ConsoleOutputBeginPos);
+                Interlocked.Increment(ref OutputAnchor);
                 RedrawInput();
             }
             
@@ -210,11 +209,11 @@ namespace ConsoleInteractive {
             Interlocked.Decrement(ref CurrentBufferPos);
 
             // If we have extra buffer at the start
-            if (InternalContext.CurrentCursorLeftPos == 0 && ConsoleOutputBeginPos != 0) {
-                Interlocked.Decrement(ref ConsoleOutputBeginPos);
+            if (InternalContext.CurrentCursorLeftPos == 0 && OutputAnchor != 0) {
+                Interlocked.Decrement(ref OutputAnchor);
 
-                if (ConsoleOutputLength != UserInputBuffer.Length && ConsoleOutputLength < UserInputBufferMaxLength)
-                    Interlocked.Increment(ref ConsoleOutputLength);
+                if (OutputLength != UserInputBuffer.Length && OutputLength < UserInputBufferMaxLength)
+                    Interlocked.Increment(ref OutputLength);
                 
                 RedrawInput();
             }
@@ -256,7 +255,7 @@ namespace ConsoleInteractive {
                     Console.Write('\b');
                 }
 
-                Interlocked.Decrement(ref ConsoleOutputLength);
+                Interlocked.Decrement(ref OutputLength);
             } else
                 RedrawWithTrailingCheck();
         }
@@ -269,7 +268,7 @@ namespace ConsoleInteractive {
             
             // If the buffer isn't longer than the write limit
             if (cEndPos < UserInputBufferMaxLength && isBufferShorterThanWriteLimit) {
-                Interlocked.Decrement(ref ConsoleOutputLength); // Shorten the length so we don't get an OutOfBoundsException.
+                Interlocked.Decrement(ref OutputLength); // Shorten the length so we don't get an OutOfBoundsException.
                 RemoveTrailingLetter();
                 RedrawInput();
             }
@@ -298,7 +297,7 @@ namespace ConsoleInteractive {
         private static void RemoveTrailingLetter() {
             Console.CursorVisible = false;
 
-            if (ConsoleOutputBeginPos != 0) {
+            if (OutputAnchor != 0) {
                 Console.SetCursorPosition(GetConsoleEndPosition(), InternalContext.CurrentCursorTopPos);
             } else
                 Console.SetCursorPosition(UserInputBuffer.Length, InternalContext.CurrentCursorTopPos);
@@ -317,17 +316,17 @@ namespace ConsoleInteractive {
         internal static string FlushBuffer() {
             ClearVisibleUserInput();
             Interlocked.Exchange(ref CurrentBufferPos, 0);
-            Interlocked.Exchange(ref ConsoleOutputBeginPos, 0);
-            Interlocked.Exchange(ref ConsoleOutputLength, 0);
+            Interlocked.Exchange(ref OutputAnchor, 0);
+            Interlocked.Exchange(ref OutputLength, 0);
             var retval = UserInputBuffer.ToString();
             UserInputBuffer.Clear();
             
-            PresentBuffer.Clear();
-            PresentBuffer.Append(Prefix);
-            Interlocked.Exchange(ref InternalContext.CurrentCursorLeftPos, PrefixLength);
+            OutputBuffer.Clear();
+            OutputBuffer.Append(Prefix);
+            Interlocked.Exchange(ref InternalContext.CurrentCursorLeftPos, Prefix.Length);
             
             Console.CursorVisible = false;
-            Console.Write(PresentBuffer);
+            Console.Write(OutputBuffer);
             Console.CursorVisible = true;
             Debug.WriteLine("Flushed buffer with string: " + retval);
             return retval;
@@ -354,11 +353,11 @@ namespace ConsoleInteractive {
 
         internal static void MoveToStartBufferPosition() {
             Interlocked.Exchange(ref CurrentBufferPos, 0);
-            Interlocked.Exchange(ref ConsoleOutputBeginPos, 0);
+            Interlocked.Exchange(ref OutputAnchor, 0);
             if (UserInputBuffer.Length < UserInputBufferMaxLength)
-                Interlocked.Exchange(ref ConsoleOutputLength, UserInputBuffer.Length);
+                Interlocked.Exchange(ref OutputLength, UserInputBuffer.Length);
             else
-                Interlocked.Exchange(ref ConsoleOutputLength, UserInputBufferMaxLength);
+                Interlocked.Exchange(ref OutputLength, UserInputBufferMaxLength);
 
 
             RedrawInput();
@@ -368,15 +367,15 @@ namespace ConsoleInteractive {
         internal static void MoveToEndBufferPosition() {
             if (UserInputBuffer.Length < InternalContext.CursorLeftPosLimit) {
                 Interlocked.Exchange(ref CurrentBufferPos, UserInputBuffer.Length);
-                Interlocked.Exchange(ref ConsoleOutputBeginPos, 0);
-                Interlocked.Exchange(ref ConsoleOutputLength, UserInputBuffer.Length);
+                Interlocked.Exchange(ref OutputAnchor, 0);
+                Interlocked.Exchange(ref OutputLength, UserInputBuffer.Length);
                 InternalContext.SetLeftCursorPosition(UserInputBuffer.Length);
                 return;
             }
             
             InternalContext.SetLeftCursorPosition(UserInputBufferMaxLength);
-            Interlocked.Exchange(ref ConsoleOutputLength, UserInputBufferMaxLength);
-            Interlocked.Exchange(ref ConsoleOutputBeginPos, UserInputBuffer.Length - UserInputBufferMaxLength);
+            Interlocked.Exchange(ref OutputLength, UserInputBufferMaxLength);
+            Interlocked.Exchange(ref OutputAnchor, UserInputBuffer.Length - UserInputBufferMaxLength);
             Interlocked.Exchange(ref CurrentBufferPos, UserInputBuffer.Length);
             RedrawInput();
         }
