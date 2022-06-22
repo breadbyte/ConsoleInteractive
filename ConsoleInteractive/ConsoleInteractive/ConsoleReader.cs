@@ -85,7 +85,10 @@ namespace ConsoleInteractive {
             while (!token.IsCancellationRequested) {
                 if (token.IsCancellationRequested) return;
 
-                // Guard against window resize
+                // TODO: Guard against window resize
+                // this is not entirely foolproof
+                // need to interact internally with InternalContext
+                // and mess with the ConsoleBuffer to make this work
                 InternalContext.CursorLeftPosLimit = Console.BufferWidth;
                 InternalContext.CursorTopPosLimit = Console.BufferHeight;
 
