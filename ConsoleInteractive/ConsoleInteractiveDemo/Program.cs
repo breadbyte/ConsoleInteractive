@@ -8,6 +8,7 @@ namespace ConsoleInteractiveDemo {
             CancellationTokenSource cts = new CancellationTokenSource();
             ConsoleWriter.Init();
             
+            ConsoleWriter.WriteLine("type cancel to exit the application.");
             var t1 = new Thread(new ThreadStart(() => {
                 ConsoleWriter.WriteLine("[T1] Hello World!");
                 Thread.Sleep(5000);
@@ -100,6 +101,9 @@ namespace ConsoleInteractiveDemo {
             ConsoleReader.MessageReceived += (sender, s) => {
                 if (s.Equals("cancel"))
                     ConsoleReader.StopReadThread();
+                else {
+                    ConsoleWriter.WriteLine(s);
+                }
             };
         }
     }

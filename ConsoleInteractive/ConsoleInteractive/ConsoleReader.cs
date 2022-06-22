@@ -10,9 +10,25 @@ namespace ConsoleInteractive {
         /// Invoked when a message is received.
         /// </summary>
         public static event EventHandler<string>? MessageReceived;
+        public static event EventHandler<ConsoleKey>? OnKeyInput;
         
         private static Thread? _readerThread;
         private static CancellationTokenSource? _cancellationTokenSource;
+
+        public static void SetInputVisible(bool visible) {
+            InternalContext.SuppressInput = !visible;
+        }
+
+        public static Buffer GetBufferContent() {
+            return new Buffer() {
+                Text = ConsoleBuffer.UserInputBuffer.ToString(),
+                CursorPosition = ConsoleBuffer.BufferPosition
+            };
+        }
+
+        public static void ClearBuffer() {
+            ConsoleBuffer.FlushBuffer();
+        }
 
         /// <summary>
         /// Starts a new Console Reader thread.
@@ -38,6 +54,8 @@ namespace ConsoleInteractive {
             }
             
             _cancellationTokenSource?.Cancel();
+            ConsoleBuffer.ClearBackreadBuffer();
+            ConsoleBuffer.FlushBuffer();
         }
 
         public static string RequestImmediateInput() {
@@ -62,11 +80,15 @@ namespace ConsoleInteractive {
         /// <param name="cancellationToken">Exits from the key listener once cancelled.</param>
         private static void KeyListener(object cancellationToken) {
             CancellationToken token = (CancellationToken)cancellationToken!;
-
+            ConsoleBuffer.Init();
+            
             while (!token.IsCancellationRequested) {
                 if (token.IsCancellationRequested) return;
 
-                // Guard against window resize
+                // TODO: Guard against window resize
+                // this is not entirely foolproof
+                // need to interact internally with InternalContext
+                // and mess with the ConsoleBuffer to make this work
                 InternalContext.CursorLeftPosLimit = Console.BufferWidth;
                 InternalContext.CursorTopPosLimit = Console.BufferHeight;
 
@@ -80,6 +102,8 @@ namespace ConsoleInteractive {
 
                 if (token.IsCancellationRequested) return;
 
+                OnKeyInput?.Invoke(null, k.Key);
+                
                 switch (k.Key) {
                     case ConsoleKey.Enter:
                         if (token.IsCancellationRequested) return;
@@ -88,6 +112,7 @@ namespace ConsoleInteractive {
                             ConsoleBuffer.ClearVisibleUserInput();
                             var input = ConsoleBuffer.FlushBuffer();
 
+                            ConsoleBuffer.AddToBackreadBuffer(input);
                             MessageReceived?.Invoke(null, input);
 
                             /*
@@ -134,6 +159,47 @@ namespace ConsoleInteractive {
                             ConsoleBuffer.MoveCursorForward();
                         
                         break;
+                    case ConsoleKey.UpArrow:
+                        if (token.IsCancellationRequested) return;
+                        lock (InternalContext.WriteLock) {
+                            if (ConsoleBuffer.BackreadBuffer.Count == 0) break;
+
+                            var backread = ConsoleBuffer.GetBackreadBackwards();
+                            var backreadCopied = ConsoleBuffer.isCurrentBufferCopied;
+                            var backreadString = ConsoleBuffer.UserInputBufferCopy;
+                            ConsoleBuffer.SetBufferContent(backread);
+
+                            // SetBufferContent clears the backread, so we need to pass it again
+                            if (backreadCopied) {
+                                ConsoleBuffer.isCurrentBufferCopied = backreadCopied;
+                                ConsoleBuffer.UserInputBufferCopy = backreadString;
+                                
+                                Debug.Assert(ConsoleBuffer.isCurrentBufferCopied && ConsoleBuffer.UserInputBufferCopy.Length != 0);
+                            }
+                        }
+
+                        break;
+                    case ConsoleKey.DownArrow:
+                        if (token.IsCancellationRequested) return;
+                        lock (InternalContext.WriteLock) {
+                            if (ConsoleBuffer.BackreadBuffer.Count == 0) break;
+
+                            var backread = ConsoleBuffer.GetBackreadForwards();
+                            var backreadCopied = ConsoleBuffer.isCurrentBufferCopied;
+                            var backreadString = ConsoleBuffer.UserInputBufferCopy;
+                            ConsoleBuffer.SetBufferContent(backread);
+                            
+
+                            // SetBufferContent clears the backread, so we need to pass it again
+                            if (backreadCopied) {
+                                ConsoleBuffer.isCurrentBufferCopied = backreadCopied;
+                                ConsoleBuffer.UserInputBufferCopy = backreadString;
+                                
+                                Debug.Assert(ConsoleBuffer.isCurrentBufferCopied && ConsoleBuffer.UserInputBufferCopy.Length != 0);
+                            }
+                        }
+                        
+                        break;
                     default:
                         if (token.IsCancellationRequested) return;
 
@@ -143,7 +209,7 @@ namespace ConsoleInteractive {
                             case '\t':
                             case '\r':
                             case '\n':
-                                return;
+                                continue;
                         }
 
 
@@ -154,6 +220,11 @@ namespace ConsoleInteractive {
                         break;
                 }
             }
+        }
+        
+        public record Buffer {
+            public string Text { get; init; }
+            public int CursorPosition { get; init; }
         }
     }
 }

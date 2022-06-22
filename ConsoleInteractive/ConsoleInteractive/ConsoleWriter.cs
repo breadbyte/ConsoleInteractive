@@ -37,20 +37,23 @@ namespace ConsoleInteractive {
     internal static class InternalWriter {
         private static void Write(string value) {
             lock (InternalContext.WriteLock) {
-                var currentCursorPos = InternalContext.CursorLeftPos;
+                var currentCursorPos = InternalContext.CurrentCursorLeftPos;
                 
                 ConsoleBuffer.ClearVisibleUserInput();
                 Console.WriteLine(value);
                 int linesAdded = (value.Length / InternalContext.CursorLeftPosLimit) + 1;
                 
-                if (InternalContext.CursorTopPos + linesAdded >= InternalContext.CursorTopPosLimit)
-                    Interlocked.Exchange(ref InternalContext.CursorTopPos, InternalContext.CursorTopPosLimit - 1);
+                if (InternalContext.CurrentCursorTopPos + linesAdded >= InternalContext.CursorTopPosLimit)
+                    Interlocked.Exchange(ref InternalContext.CurrentCursorTopPos, InternalContext.CursorTopPosLimit - 1);
                 else 
-                    Interlocked.Add(ref InternalContext.CursorTopPos, linesAdded);
+                    Interlocked.Add(ref InternalContext.CurrentCursorTopPos, linesAdded);
                 
                 ConsoleBuffer.RedrawInput();
                 
-                Console.SetCursorPosition(currentCursorPos, InternalContext.CursorTopPos);
+                // Need to redraw the prefix manually in cases that RedrawInput() doesn't
+                ConsoleBuffer.DrawPrefix();
+                
+                Console.SetCursorPosition(currentCursorPos, InternalContext.CurrentCursorTopPos);
                 InternalContext.SetLeftCursorPosition(currentCursorPos);
             }
         }

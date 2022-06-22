@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net5.0</TargetFramework>
+        <TargetFramework>net7.0</TargetFramework>
         <Title>ConsoleInteractive</Title>
         <Authors>breadbyte</Authors>
         <Description>A C# library that allows you to write and read from the console simultaneously</Description>
@@ -9,22 +9,29 @@
         <Nullable>enable</Nullable>
         <PackageId>ConsoleInteractivePrompt</PackageId>
         <PackageLicenseUrl>https://github.com/breadbyte/ConsoleInteractive/blob/main/LICENSE</PackageLicenseUrl>
+        <LangVersion>default</LangVersion>
     </PropertyGroup>
 
     <ItemGroup>
       <Compile Remove="ConsoleInteractiveDemo\**" />
+      <Compile Remove="ConsoleBufferTestProject\**" />
     </ItemGroup>
 
     <ItemGroup>
       <EmbeddedResource Remove="ConsoleInteractiveDemo\**" />
+      <EmbeddedResource Remove="ConsoleBufferTestProject\**" />
     </ItemGroup>
 
     <ItemGroup>
       <None Remove="ConsoleInteractiveDemo\**" />
+      <None Remove="ConsoleBufferTestProject\**" />
     </ItemGroup>
 
     <ItemGroup>
+      <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.0.0" />
       <PackageReference Include="PInvoke.Kernel32" Version="0.7.104" />
+      <PackageReference Include="xunit.assert" Version="2.4.1" />
+      <PackageReference Include="xunit.extensibility.core" Version="2.4.1" />
     </ItemGroup>
 
 </Project>
