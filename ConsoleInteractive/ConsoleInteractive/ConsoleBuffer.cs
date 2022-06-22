@@ -115,9 +115,7 @@ namespace ConsoleInteractive {
         /// </summary>
         /// <param name="c">The character to insert.</param>
         internal static void Insert(char c) {
-            
-            // TODO: Watch for console resizes.
-            
+
             // Insert at the current buffer pos.
             UserInputBuffer.Insert(BufferPosition, c);
             Interlocked.Increment(ref BufferPosition);
@@ -148,6 +146,7 @@ namespace ConsoleInteractive {
                 // We have hit the end of the output, so we need to move the output anchor forward.
                 Interlocked.Increment(ref BufferOutputAnchor);
                 RedrawInput();
+                return;
             }
             
             // Increment the console cursor.
