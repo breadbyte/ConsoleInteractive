@@ -50,6 +50,9 @@ namespace ConsoleInteractive {
                 
                 ConsoleBuffer.RedrawInput();
                 
+                // Need to redraw the prefix manually in cases that RedrawInput() doesn't
+                ConsoleBuffer.DrawPrefix();
+                
                 Console.SetCursorPosition(currentCursorPos, InternalContext.CurrentCursorTopPos);
                 InternalContext.SetLeftCursorPosition(currentCursorPos);
             }

@@ -194,7 +194,7 @@ namespace ConsoleInteractive {
         /// <summary>
         /// Draws the prefix.
         /// </summary>
-        private static void DrawPrefix() {
+        internal static void DrawPrefix() {
             lock (InternalContext.WriteLock) {
                 // Ensure the prefix is drawn at the correct position.
                 Debug.Assert(InternalContext.CurrentCursorLeftPos == 0);
