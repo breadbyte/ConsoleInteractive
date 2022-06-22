@@ -5,7 +5,6 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 
-[assembly: InternalsVisibleTo("ConsoleBufferTest")]
 namespace ConsoleInteractive {
     internal static class InternalContext {
         internal static object WriteLock = new();
@@ -34,6 +33,30 @@ namespace ConsoleInteractive {
             
             Console.SetCursorPosition(leftPos, CurrentCursorTopPos);
             Interlocked.Exchange(ref CurrentCursorLeftPos, leftPos);
+        }
+
+        internal static void SetTopCursorPosition(int topPos) {
+            if (CurrentCursorTopPos == CursorTopPosLimit) {
+                Interlocked.Exchange(ref CurrentCursorTopPos, CursorTopPosLimit - 1);
+            }
+            
+            Console.SetCursorPosition(CurrentCursorLeftPos, topPos);
+            Interlocked.Exchange(ref CurrentCursorTopPos, topPos);
+        }
+
+        internal static void SetCursorPosition(int leftPos, int topPos) {
+            SetLeftCursorPosition(leftPos);
+            SetTopCursorPosition(topPos);
+        }
+        
+        internal static void SetCursorVisible(bool visible) {
+            
+            // It's useful to have the cursor visible in debug situations
+            #if DEBUG
+                return;
+            #endif
+            
+            Console.CursorVisible = visible;
         }
 
         internal static void IncrementLeftPos() {

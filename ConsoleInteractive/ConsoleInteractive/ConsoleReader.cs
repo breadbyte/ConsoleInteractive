@@ -22,7 +22,7 @@ namespace ConsoleInteractive {
         public static Buffer GetBufferContent() {
             return new Buffer() {
                 Text = ConsoleBuffer.UserInputBuffer.ToString(),
-                CursorPosition = ConsoleBuffer.CurrentBufferPos
+                CursorPosition = ConsoleBuffer.BufferPosition
             };
         }
 
@@ -108,7 +108,6 @@ namespace ConsoleInteractive {
                         lock (InternalContext.WriteLock) {
                             ConsoleBuffer.ClearVisibleUserInput();
                             var input = ConsoleBuffer.FlushBuffer();
-                            ConsoleBuffer.UserInputBufferCopy.Clear();
 
                             ConsoleBuffer.AddToBackreadBuffer(input);
                             MessageReceived?.Invoke(null, input);
@@ -161,7 +160,19 @@ namespace ConsoleInteractive {
                         if (token.IsCancellationRequested) return;
                         lock (InternalContext.WriteLock) {
                             if (ConsoleBuffer.BackreadBuffer.Count == 0) break;
-                            ConsoleBuffer.SetBufferContent(ConsoleBuffer.GetBackreadBackwards());
+
+                            var backread = ConsoleBuffer.GetBackreadBackwards();
+                            var backreadCopied = ConsoleBuffer.isCurrentBufferCopied;
+                            var backreadString = ConsoleBuffer.UserInputBufferCopy;
+                            ConsoleBuffer.SetBufferContent(backread);
+
+                            // SetBufferContent clears the backread, so we need to pass it again
+                            if (backreadCopied) {
+                                ConsoleBuffer.isCurrentBufferCopied = backreadCopied;
+                                ConsoleBuffer.UserInputBufferCopy = backreadString;
+                                
+                                Debug.Assert(ConsoleBuffer.isCurrentBufferCopied && ConsoleBuffer.UserInputBufferCopy.Length != 0);
+                            }
                         }
 
                         break;
@@ -169,7 +180,20 @@ namespace ConsoleInteractive {
                         if (token.IsCancellationRequested) return;
                         lock (InternalContext.WriteLock) {
                             if (ConsoleBuffer.BackreadBuffer.Count == 0) break;
-                            ConsoleBuffer.SetBufferContent(ConsoleBuffer.GetBackreadForwards());
+
+                            var backread = ConsoleBuffer.GetBackreadForwards();
+                            var backreadCopied = ConsoleBuffer.isCurrentBufferCopied;
+                            var backreadString = ConsoleBuffer.UserInputBufferCopy;
+                            ConsoleBuffer.SetBufferContent(backread);
+                            
+
+                            // SetBufferContent clears the backread, so we need to pass it again
+                            if (backreadCopied) {
+                                ConsoleBuffer.isCurrentBufferCopied = backreadCopied;
+                                ConsoleBuffer.UserInputBufferCopy = backreadString;
+                                
+                                Debug.Assert(ConsoleBuffer.isCurrentBufferCopied && ConsoleBuffer.UserInputBufferCopy.Length != 0);
+                            }
                         }
                         
                         break;
