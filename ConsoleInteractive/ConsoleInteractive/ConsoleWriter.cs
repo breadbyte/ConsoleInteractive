@@ -37,22 +37,40 @@ namespace ConsoleInteractive {
     internal static class InternalWriter {
         private static void Write(string value) {
             lock (InternalContext.WriteLock) {
-                var currentCursorPos = InternalContext.CurrentCursorLeftPos;
                 
-                ConsoleBuffer.ClearVisibleUserInput();
+                // If the buffer is initialized, then we should get the current cursor position
+                // because we potentially are writing over user input.
+                //
+                // 0 otherwise, since we know that there is no user input,
+                // so we can start at the beginning.
+                int currentCursorPos = 0;
+                if (InternalContext.BufferInitialized) {
+                    currentCursorPos = InternalContext.CurrentCursorLeftPos;
+                    ConsoleBuffer.ClearVisibleUserInput();
+                }
+                else
+                    // Clears the entire line. Not optimal as it also clears blank spaces,
+                    // but ensures that the entire line is cleared.
+                    ConsoleBuffer.ClearCurrentLine();
+                
                 Console.WriteLine(value);
                 int linesAdded = (value.Length / InternalContext.CursorLeftPosLimit) + 1;
                 
+                // Determine if we need to use the previous top position.
+                // i.e. vertically constrained.
                 if (InternalContext.CurrentCursorTopPos + linesAdded >= InternalContext.CursorTopPosLimit)
                     Interlocked.Exchange(ref InternalContext.CurrentCursorTopPos, InternalContext.CursorTopPosLimit - 1);
                 else 
                     Interlocked.Add(ref InternalContext.CurrentCursorTopPos, linesAdded);
-                
-                ConsoleBuffer.RedrawInput();
-                
-                // Need to redraw the prefix manually in cases that RedrawInput() doesn't
-                ConsoleBuffer.DrawPrefix();
-                
+
+                // Only redraw if we have a buffer initialized.
+                if (InternalContext.BufferInitialized) {
+                    ConsoleBuffer.RedrawInput();
+
+                    // Need to redraw the prefix manually in cases that RedrawInput() doesn't
+                    ConsoleBuffer.DrawPrefix();
+                }
+
                 Console.SetCursorPosition(currentCursorPos, InternalContext.CurrentCursorTopPos);
                 InternalContext.SetLeftCursorPosition(currentCursorPos);
             }

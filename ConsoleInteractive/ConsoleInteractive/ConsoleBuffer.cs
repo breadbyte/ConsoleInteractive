@@ -108,6 +108,7 @@ namespace ConsoleInteractive {
         /// </summary>
         internal static void Init() {
             DrawPrefix();
+            InternalContext.BufferInitialized = true;
         }
 
         /// <summary>
@@ -150,7 +151,8 @@ namespace ConsoleInteractive {
             }
             
             // Increment the console cursor.
-            InternalContext.IncrementLeftPos();
+            if (!InternalContext.SuppressInput)
+                InternalContext.IncrementLeftPos();
         }
         
         internal static void SetBufferContent(string content) {
@@ -380,12 +382,22 @@ namespace ConsoleInteractive {
                 
                 bool requireCompleteClear = UserInputBuffer.Length > UserInputBufferMaxLength;
 
-                for (int i = 0; i <= (requireCompleteClear ? UserInputBufferMaxLength : UserInputBuffer.Length + 1); i++) {
+                for (int i = 0; i <= (requireCompleteClear ? UserInputBufferMaxLength : UserInputBuffer.Length + PrefixTotalLength + 1); i++) {
                     Console.Write(' ');
                 }
 
                 Console.SetCursorPosition(0, InternalContext.CurrentCursorTopPos);
                 InternalContext.SetLeftCursorPosition(0);
+            }
+        }
+
+        internal static void ClearCurrentLine() {
+            lock (InternalContext.WriteLock) {
+                InternalContext.SetCursorPosition(0, InternalContext.CurrentCursorTopPos);
+                for (int i = 0; i < InternalContext.CursorLeftPosLimit; i++) {
+                    Console.Write(' ');
+                }
+                InternalContext.SetCursorPosition(0, InternalContext.CurrentCursorTopPos);
             }
         }
 
@@ -403,12 +415,18 @@ namespace ConsoleInteractive {
         }
 
         internal static void MoveToEndBufferPosition() {
+            if (InternalContext.SuppressInput) return;
+            
             Interlocked.Exchange(ref BufferPosition, UserInputBuffer.Length);
             
             if (UserInputBuffer.Length < InternalContext.CursorLeftPosLimit) {
                 Interlocked.Exchange(ref BufferOutputAnchor, 0);
                 Interlocked.Exchange(ref BufferOutputLength, UserInputBuffer.Length);
-                InternalContext.SetLeftCursorPosition(UserInputBuffer.Length + 1);
+                
+                if (UserInputBuffer.Length == 0)
+                    InternalContext.SetLeftCursorPosition(PrefixTotalLength);
+                else 
+                    InternalContext.SetLeftCursorPosition(UserInputBuffer.Length + PrefixTotalLength);
                 return;
             }
             

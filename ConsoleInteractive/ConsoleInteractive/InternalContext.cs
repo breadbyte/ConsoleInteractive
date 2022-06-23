@@ -14,6 +14,8 @@ namespace ConsoleInteractive {
         internal static volatile int CursorLeftPosLimit = Console.BufferWidth;
         internal static volatile int CursorTopPosLimit = Console.BufferHeight;
         internal static volatile bool _suppressInput = false;
+        internal static volatile bool BufferInitialized = false;
+        
         internal static bool SuppressInput {
             get { return _suppressInput; }
             set {

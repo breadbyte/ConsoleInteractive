@@ -71,6 +71,7 @@ namespace ConsoleInteractive {
             autoEvent.WaitOne();
             StopReadThread();
             _readerThread!.Join();
+            InternalContext.BufferInitialized = false;
             return bufferString;
         }
 
@@ -220,6 +221,7 @@ namespace ConsoleInteractive {
                         break;
                 }
             }
+            InternalContext.BufferInitialized = false;
         }
         
         public record Buffer {
