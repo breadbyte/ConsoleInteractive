@@ -1,7 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net7.0</TargetFramework>
         <Title>ConsoleInteractive</Title>
         <Authors>breadbyte</Authors>
         <Description>A C# library that allows you to write and read from the console simultaneously</Description>
@@ -10,6 +9,8 @@
         <PackageId>ConsoleInteractivePrompt</PackageId>
         <PackageLicenseUrl>https://github.com/breadbyte/ConsoleInteractive/blob/main/LICENSE</PackageLicenseUrl>
         <LangVersion>default</LangVersion>
+        <TargetFrameworks>net5.0;net6.0;net7.0</TargetFrameworks>
+        <OutputType>Library</OutputType>
     </PropertyGroup>
 
     <ItemGroup>
