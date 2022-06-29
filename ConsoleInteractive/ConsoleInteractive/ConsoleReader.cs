@@ -56,6 +56,7 @@ namespace ConsoleInteractive {
             _cancellationTokenSource?.Cancel();
             ConsoleBuffer.ClearBackreadBuffer();
             ConsoleBuffer.FlushBuffer();
+            ConsoleBuffer.ClearCurrentLine();
         }
 
         public static string RequestImmediateInput() {
