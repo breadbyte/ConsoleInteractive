@@ -355,7 +355,6 @@ namespace ConsoleInteractive {
             InternalContext.SetCursorVisible(false);
             DrawPrefix();
             InternalContext.SetCursorVisible(true);
-            Debug.WriteLine("Flushed buffer with string: " + retval);
             return retval;
         }
 
