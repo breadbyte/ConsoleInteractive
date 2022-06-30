@@ -351,10 +351,13 @@ namespace ConsoleInteractive {
             ClearVisibleUserInput();
             ClearBuffer();
             RemoveCurrentBufferInBackread();
-            
-            InternalContext.SetCursorVisible(false);
-            DrawPrefix();
-            InternalContext.SetCursorVisible(true);
+
+            if (InternalContext.BufferInitialized) {
+                InternalContext.SetCursorVisible(false);
+                DrawPrefix();
+                InternalContext.SetCursorVisible(true);
+            }
+
             return retval;
         }
 

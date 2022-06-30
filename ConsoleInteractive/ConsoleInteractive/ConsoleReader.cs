@@ -54,6 +54,7 @@ namespace ConsoleInteractive {
             }
             
             _cancellationTokenSource?.Cancel();
+            InternalContext.BufferInitialized = false;
             ConsoleBuffer.ClearBackreadBuffer();
             ConsoleBuffer.FlushBuffer();
             ConsoleBuffer.ClearCurrentLine();
