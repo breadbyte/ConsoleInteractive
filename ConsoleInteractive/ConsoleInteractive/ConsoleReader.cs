@@ -177,7 +177,7 @@ namespace ConsoleInteractive {
                                 ConsoleBuffer.isCurrentBufferCopied = backreadCopied;
                                 ConsoleBuffer.UserInputBufferCopy = backreadString;
                                 
-                                Debug.Assert(ConsoleBuffer.isCurrentBufferCopied && ConsoleBuffer.UserInputBufferCopy.Length != 0);
+                                Trace.Assert(ConsoleBuffer.isCurrentBufferCopied && ConsoleBuffer.UserInputBufferCopy.Length != 0);
                             }
                         }
 
@@ -198,7 +198,7 @@ namespace ConsoleInteractive {
                                 ConsoleBuffer.isCurrentBufferCopied = backreadCopied;
                                 ConsoleBuffer.UserInputBufferCopy = backreadString;
                                 
-                                Debug.Assert(ConsoleBuffer.isCurrentBufferCopied && ConsoleBuffer.UserInputBufferCopy.Length != 0);
+                                Trace.Assert(ConsoleBuffer.isCurrentBufferCopied && ConsoleBuffer.UserInputBufferCopy.Length != 0);
                             }
                         }
                         

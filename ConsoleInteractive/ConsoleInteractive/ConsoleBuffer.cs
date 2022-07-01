@@ -180,7 +180,7 @@ namespace ConsoleInteractive {
                 // because DrawPrefix() will move the cursor.
                 var previousPos = InternalContext.CurrentCursorLeftPos;
 
-                Debug.Assert(BufferOutputLength != 0);
+                Trace.Assert(BufferOutputLength != 0);
 
                 // Redraw the prefix.
                 InternalContext.SetCursorPosition(0, InternalContext.CurrentCursorTopPos);
@@ -199,7 +199,7 @@ namespace ConsoleInteractive {
         internal static void DrawPrefix() {
             lock (InternalContext.WriteLock) {
                 // Ensure the prefix is drawn at the correct position.
-                Debug.Assert(InternalContext.CurrentCursorLeftPos == 0);
+                Trace.Assert(InternalContext.CurrentCursorLeftPos == 0);
 
                 // Determine if we need to use the opposite prefix.
                 var prefix = BufferOutputAnchor > 0 ? PrefixOpposite : Prefix;
