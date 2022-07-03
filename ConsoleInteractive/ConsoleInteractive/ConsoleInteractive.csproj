@@ -9,7 +9,7 @@
         <PackageId>ConsoleInteractivePrompt</PackageId>
         <PackageLicenseUrl>https://github.com/breadbyte/ConsoleInteractive/blob/main/LICENSE</PackageLicenseUrl>
         <LangVersion>default</LangVersion>
-        <TargetFrameworks>net5.0;net6.0;net7.0</TargetFrameworks>
+        <TargetFrameworks>net5.0;net6.0</TargetFrameworks>
         <OutputType>Library</OutputType>
     </PropertyGroup>
 
