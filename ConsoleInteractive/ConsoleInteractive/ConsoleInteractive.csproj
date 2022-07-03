@@ -11,6 +11,7 @@
         <LangVersion>default</LangVersion>
         <TargetFrameworks>net5.0;net6.0</TargetFrameworks>
         <OutputType>Library</OutputType>
+        <PublishSingleFile>false</PublishSingleFile>
     </PropertyGroup>
 
     <ItemGroup>
