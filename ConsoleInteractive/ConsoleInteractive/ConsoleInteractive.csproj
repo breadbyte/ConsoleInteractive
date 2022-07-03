@@ -14,25 +14,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <Compile Remove="ConsoleInteractiveDemo\**" />
-      <Compile Remove="ConsoleBufferTestProject\**" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <EmbeddedResource Remove="ConsoleInteractiveDemo\**" />
-      <EmbeddedResource Remove="ConsoleBufferTestProject\**" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <None Remove="ConsoleInteractiveDemo\**" />
-      <None Remove="ConsoleBufferTestProject\**" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.0.0" />
       <PackageReference Include="PInvoke.Kernel32" Version="0.7.104" />
-      <PackageReference Include="xunit.assert" Version="2.4.1" />
-      <PackageReference Include="xunit.extensibility.core" Version="2.4.1" />
     </ItemGroup>
 
 </Project>
