@@ -40,6 +40,10 @@ namespace ConsoleInteractive {
             }
             
             _cancellationTokenSource = cancellationTokenSource;
+            if (InternalContext.IsUsingSystemConsole)
+                _readerThread = new Thread(new ParameterizedThreadStart(RedirectedInputKeyListener!));
+            else
+                _readerThread = new Thread(new ParameterizedThreadStart(KeyListener!));
             _readerThread = new Thread(new ParameterizedThreadStart(KeyListener!));
             _readerThread.Name = "ConsoleInteractive.ConsoleReader Reader Thread";
             _readerThread.Start(_cancellationTokenSource.Token);
@@ -224,6 +228,36 @@ namespace ConsoleInteractive {
                 }
             }
             InternalContext.BufferInitialized = false;
+        }
+        
+        private static void RedirectedInputKeyListener(object cancellationToken)
+        {
+            CancellationToken token = (CancellationToken)cancellationToken!;
+            OutputRedirectedBuffer.Init();
+
+            while (!token.IsCancellationRequested) {
+                if (token.IsCancellationRequested) return;
+                int currentCharacter;
+
+                while (!token.IsCancellationRequested) {
+                    currentCharacter = Console.In.Peek();
+
+                    if (currentCharacter != -1) {
+                        // Insert the character into the buffer otherwise.
+                        OutputRedirectedBuffer.Insert((char)Console.Read());
+                    }
+                    else {
+                        // If we already have text in the buffer
+                        if (OutputRedirectedBuffer.UserInputBuffer.Length > 0) {
+                            
+                            // Return the buffer since the current character is at -1.
+                            // Treat it as pressing the Enter key.
+                            var input = OutputRedirectedBuffer.FlushBuffer();
+                            MessageReceived?.Invoke(null, input);
+                        }
+                    }
+                }
+            }
         }
         
         public record Buffer {

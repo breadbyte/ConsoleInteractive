@@ -107,6 +107,7 @@ namespace ConsoleInteractive {
         /// Initializes the ConsoleBuffer. Required to be called before using the ConsoleBuffer.
         /// </summary>
         internal static void Init() {
+            InternalContext.ThrowIfUsingSystemConsole();
             DrawPrefix();
             InternalContext.BufferInitialized = true;
         }

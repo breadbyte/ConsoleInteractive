@@ -13,7 +13,11 @@ namespace ConsoleInteractive {
     public static class ConsoleWriter {
 
         public static void Init() {
-            SetWindowsConsoleAnsi();
+
+            if (Console.IsInputRedirected)
+                InternalContext.IsUsingSystemConsole = true;
+            else
+                SetWindowsConsoleAnsi();
             Console.Clear();
         }
 
@@ -36,6 +40,11 @@ namespace ConsoleInteractive {
 
     internal static class InternalWriter {
         private static void Write(string value) {
+            if (InternalContext.IsUsingSystemConsole) {
+                Console.Write(value);
+                return;
+            }
+        
             lock (InternalContext.WriteLock) {
                 
                 // If the buffer is initialized, then we should get the current cursor position
