@@ -41,7 +41,9 @@ namespace ConsoleInteractive {
     internal static class InternalWriter {
         private static void Write(string value) {
             if (InternalContext.IsUsingSystemConsole) {
-                Console.Write(value);
+                // Some redirected consoles (notably docker) does not write to the log file without a newline,
+                // so we have to make every Write a WriteLine.
+                Console.WriteLine(value);
                 return;
             }
         

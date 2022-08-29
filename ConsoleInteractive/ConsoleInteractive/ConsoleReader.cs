@@ -44,7 +44,6 @@ namespace ConsoleInteractive {
                 _readerThread = new Thread(new ParameterizedThreadStart(RedirectedInputKeyListener!));
             else
                 _readerThread = new Thread(new ParameterizedThreadStart(KeyListener!));
-            _readerThread = new Thread(new ParameterizedThreadStart(KeyListener!));
             _readerThread.Name = "ConsoleInteractive.ConsoleReader Reader Thread";
             _readerThread.Start(_cancellationTokenSource.Token);
         }
