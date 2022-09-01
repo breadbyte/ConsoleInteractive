@@ -36,6 +36,10 @@ namespace ConsoleInteractive {
 
     internal static class InternalWriter {
         private static void Write(string value) {
+            int linesAdded = 0;
+            foreach (string line in value.Split('\n'))
+                linesAdded += (line.Length / InternalContext.CursorLeftPosLimit) + 1;
+
             lock (InternalContext.WriteLock) {
                 
                 // If the buffer is initialized, then we should get the current cursor position
@@ -54,7 +58,6 @@ namespace ConsoleInteractive {
                     ConsoleBuffer.ClearCurrentLine();
                 
                 Console.WriteLine(value);
-                int linesAdded = (value.Length / InternalContext.CursorLeftPosLimit) + 1;
                 
                 // Determine if we need to use the previous top position.
                 // i.e. vertically constrained.
