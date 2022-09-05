@@ -36,13 +36,13 @@ namespace ConsoleInteractive {
 
     internal static class InternalWriter {
         private static void Write(string value) {
-            List<int> lineLens = new();
+            int linesAdded = 0;
             foreach (string line in value.Split('\n'))
             {
                 int lineLen = line.Length;
                 foreach (Match colorCode in Regex.Matches(line, @"\u001B\[\d+m"))
                     lineLen -= colorCode.Groups[0].Length;
-                lineLens.Add(Math.Max(0, lineLen - 1));
+                linesAdded += (Math.Max(0, lineLen - 1) / InternalContext.CursorLeftPosLimit) + 1;
             }
 
             lock (InternalContext.WriteLock) {
@@ -63,10 +63,6 @@ namespace ConsoleInteractive {
                     ConsoleBuffer.ClearCurrentLine();
                 
                 Console.WriteLine(value);
-
-                int linesAdded = 0;
-                foreach (int lineLen in lineLens)
-                    linesAdded += (lineLen / InternalContext.CursorLeftPosLimit) + 1;
 
                 // Determine if we need to use the previous top position.
                 // i.e. vertically constrained.
