@@ -34,7 +34,7 @@ namespace ConsoleInteractive {
     }
 
     internal static class InternalWriter {
-        private static void Write(string value) {
+        internal static void Write(string value) {
             int linesAdded = 0;
             foreach (string line in value.Split('\n'))
             {
