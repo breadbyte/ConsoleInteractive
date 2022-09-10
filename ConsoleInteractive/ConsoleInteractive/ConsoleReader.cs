@@ -172,13 +172,14 @@ namespace ConsoleInteractive {
                             var backreadCopied = ConsoleBuffer.isCurrentBufferCopied;
                             var backreadString = ConsoleBuffer.UserInputBufferCopy;
                             ConsoleBuffer.SetBufferContent(backread);
+                            ConsoleBuffer.MoveToEndBufferPosition();
 
                             // SetBufferContent clears the backread, so we need to pass it again
                             if (backreadCopied) {
                                 ConsoleBuffer.isCurrentBufferCopied = backreadCopied;
                                 ConsoleBuffer.UserInputBufferCopy = backreadString;
                                 
-                                Trace.Assert(ConsoleBuffer.isCurrentBufferCopied && ConsoleBuffer.UserInputBufferCopy.Length != 0);
+                                Trace.Assert(ConsoleBuffer.isCurrentBufferCopied);
                             }
                         }
 
@@ -192,14 +193,15 @@ namespace ConsoleInteractive {
                             var backreadCopied = ConsoleBuffer.isCurrentBufferCopied;
                             var backreadString = ConsoleBuffer.UserInputBufferCopy;
                             ConsoleBuffer.SetBufferContent(backread);
-                            
+                            ConsoleBuffer.MoveToEndBufferPosition();
+
 
                             // SetBufferContent clears the backread, so we need to pass it again
                             if (backreadCopied) {
                                 ConsoleBuffer.isCurrentBufferCopied = backreadCopied;
                                 ConsoleBuffer.UserInputBufferCopy = backreadString;
                                 
-                                Trace.Assert(ConsoleBuffer.isCurrentBufferCopied && ConsoleBuffer.UserInputBufferCopy.Length != 0);
+                                Trace.Assert(ConsoleBuffer.isCurrentBufferCopied);
                             }
                         }
                         
