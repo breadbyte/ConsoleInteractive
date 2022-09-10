@@ -9,7 +9,6 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\ConsoleInteractive.csproj" />
       <ProjectReference Include="..\ConsoleInteractive\ConsoleInteractive.csproj" />
     </ItemGroup>
 

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 
 namespace ConsoleInteractive; 
@@ -29,8 +30,36 @@ public class FormattedStringBuilder {
     
     public string Build() {
         foreach (StringData strData in strings) {
-            
-            // Step 1: Process color if available
+
+            // Step 1: Process formatting if available
+            // Append the formatting first before the color,
+            // because the None formatting type sends a reset code
+            // to prevent the previous formatting and color from getting carried over.
+            switch (strData.Formatting)
+            {
+                case Formatting.None:
+                    internalStringBuilder.Append($"\u001B[0m");
+                    break;
+                case Formatting.Obfuscated: // Square character for obfuscation.
+                    internalStringBuilder.Append('\u2588', strData.Text.Length);
+                    continue;
+                case Formatting.Bold:
+                    internalStringBuilder.Append($"\u001B[1m");
+                    break;
+                case Formatting.Strikethrough:
+                    internalStringBuilder.Append($"\u001B[9m");
+                    break;
+                case Formatting.Underline:
+                    internalStringBuilder.Append($"\u001B[4m");
+                    break;
+                case Formatting.Italic:
+                    internalStringBuilder.Append($"\u001B[3m");
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException("Invalid formatting type");
+            }
+
+            // Step 2: Process color if available
             if (strData.ForegroundColor != null) {
                 var color = strData.ForegroundColor.Value;
                 internalStringBuilder.Append($"\u001B[38;2;{color.R};{color.G};{color.B}m");
@@ -41,32 +70,7 @@ public class FormattedStringBuilder {
                 internalStringBuilder.Append($"\u001B[48;2;{color.R};{color.G};{color.B}m");
             }
 
-            // Step 2: Process formatting if available
-            if (strData.Formatting.HasValue) {
-                switch (strData.Formatting) {
-                    case Formatting.None:
-                    case null:
-                        internalStringBuilder.Append($"\u001B[0m{strData.Text}");
-                        break;
-                    case Formatting.Obfuscated: // Square character for obfuscation.
-                        internalStringBuilder.Append('\u2588', strData.Text.Length);
-                        continue;
-                    case Formatting.Bold:
-                        internalStringBuilder.Append($"\u001B[1m");
-                        break;
-                    case Formatting.Strikethrough:
-                        internalStringBuilder.Append($"\u001B[9m");
-                        break;
-                    case Formatting.Underline:
-                        internalStringBuilder.Append($"\u001B[4m");
-                        break;
-                    case Formatting.Italic:
-                        internalStringBuilder.Append($"\u001B[3m");
-                        break;
-                    default:
-                        throw new ArgumentOutOfRangeException("Invalid formatting type");
-                }
-            }
+            internalStringBuilder.Append(strData.Text);
         }
         var retval = internalStringBuilder + Environment.NewLine;
         internalStringBuilder.Clear();
@@ -85,16 +89,17 @@ public class FormattedStringBuilder {
 
     private struct StringData {
 
-        public StringData(string text, Color? backgroundColor = null, Color? foregroundColor = null, Formatting? formatting = FormattedStringBuilder.Formatting.None) {
+        public StringData(string text, Color? backgroundColor = null, Color? foregroundColor = null, Formatting formatting = FormattedStringBuilder.Formatting.None) {
             this.Text = text;
             this.BackgroundColor = backgroundColor;
             this.ForegroundColor = foregroundColor;
+            this.Formatting = formatting;
         }
         
         public string Text { get; }
         public Color? BackgroundColor { get; }
         public Color? ForegroundColor { get; }
-        public Formatting? Formatting { get; } = FormattedStringBuilder.Formatting.None;
+        public Formatting Formatting { get; } = FormattedStringBuilder.Formatting.None;
     };
 
     public struct Color {
