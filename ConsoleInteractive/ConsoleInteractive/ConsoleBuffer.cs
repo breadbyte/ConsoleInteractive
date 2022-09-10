@@ -440,12 +440,13 @@ namespace ConsoleInteractive {
 
 
         private static volatile int BufferBackreadPos = 0;
-        private const int BackreadBufferLimit = 8;
-        internal static List<string> BackreadBuffer = new List<string>(BackreadBufferLimit + 1);
+        private const int BackreadBufferLimit = 32;
+        internal static List<string> BackreadBuffer = new(BackreadBufferLimit + 1);
         internal static string UserInputBufferCopy = string.Empty;
         internal static volatile bool isCurrentBufferCopied;
         
         public static void IncrementBackreadPos() {
+            if (BufferBackreadPos == BackreadBuffer.Count) return;
             Interlocked.Increment(ref BufferBackreadPos);
         }
         
@@ -471,19 +472,17 @@ namespace ConsoleInteractive {
         public static string GetBackreadBackwards() {
             if (BackreadBuffer.Count == 0) return UserInputBuffer.ToString();
 
-            if (!isCurrentBufferCopied && UserInputBuffer.Length != 0) {
+            if (!isCurrentBufferCopied) {
                 UserInputBufferCopy = UserInputBuffer.ToString();
                 isCurrentBufferCopied = true;
             }
 
-            if (BufferBackreadPos == BackreadBuffer.Count) {
-                Interlocked.Exchange(ref BufferBackreadPos, 0);
-                return UserInputBufferCopy;
+            if (BufferBackreadPos == 0) {
+                return BackreadBuffer[0];
+            } else {
+                DecrementBackreadPos();
+                return BackreadBuffer[BufferBackreadPos];
             }
-
-            var retval = BackreadBuffer[BufferBackreadPos];
-            IncrementBackreadPos();
-            return retval;
         }
         
         /// <summary>
@@ -491,13 +490,17 @@ namespace ConsoleInteractive {
         /// </summary>
         /// <returns>The string in the backread buffer.</returns>
         public static string GetBackreadForwards() {
-            if (BufferBackreadPos == 0) {
-                return UserInputBufferCopy;
+            if (BackreadBuffer.Count == 0) return UserInputBuffer.ToString();
+
+            if (BufferBackreadPos == BackreadBuffer.Count) {
+                return isCurrentBufferCopied ? UserInputBufferCopy : UserInputBuffer.ToString();
+            } else {
+                IncrementBackreadPos();
+                if (BufferBackreadPos == BackreadBuffer.Count)
+                    return UserInputBufferCopy;
+                else
+                    return BackreadBuffer[BufferBackreadPos];
             }
-            
-            var retval = BackreadBuffer[BufferBackreadPos];
-            DecrementBackreadPos();
-            return retval;
         }
         
         /// <summary>
@@ -505,9 +508,12 @@ namespace ConsoleInteractive {
         /// </summary>
         /// <param name="message">The string to be added.</param>
         public static void AddToBackreadBuffer(string message) {
-            BackreadBuffer.Add(message);
-            if (BackreadBuffer.Count > BackreadBufferLimit)
-                BackreadBuffer.RemoveAt(0);
+            if (!string.IsNullOrWhiteSpace(message) && (BackreadBuffer.Count == 0 || message != BackreadBuffer[^1])) {
+                BackreadBuffer.Add(message);
+                if (BackreadBuffer.Count > BackreadBufferLimit)
+                    BackreadBuffer.RemoveAt(0);
+            }
+            Interlocked.Exchange(ref BufferBackreadPos, BackreadBuffer.Count);
         }
 
     }
