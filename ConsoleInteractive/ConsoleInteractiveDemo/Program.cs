@@ -1,11 +1,10 @@
-﻿using System;
-using System.Threading;
+﻿using System.Threading;
 using ConsoleInteractive;
 
 namespace ConsoleInteractiveDemo {
     class Program {
         static void Main(string[] args) {
-            CancellationTokenSource cts = new CancellationTokenSource();
+            CancellationTokenSource cts = new();
             ConsoleWriter.Init();
             
             ConsoleWriter.WriteLine("type cancel to exit the application.");

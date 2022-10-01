@@ -1,14 +1,11 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Runtime.CompilerServices;
-using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 
 namespace ConsoleInteractive {
     internal static class InternalContext {
         internal static object WriteLock = new();
-        internal static Regex FormatRegex = new Regex("(§[0-9a-fk-orw-z])((?:[^§]|§[^0-9a-fk-orw-z])*)", RegexOptions.Compiled);
+        internal static Regex FormatRegex = new("(§[0-9a-fk-orw-z])((?:[^§]|§[^0-9a-fk-orw-z])*)", RegexOptions.Compiled);
         internal static volatile int CurrentCursorLeftPos = 0;
         internal static volatile int CurrentCursorTopPos = 0;
         internal static volatile int CursorLeftPosLimit = Console.BufferWidth;
