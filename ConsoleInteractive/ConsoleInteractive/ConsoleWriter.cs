@@ -102,7 +102,7 @@ namespace ConsoleInteractive {
 
             bool funkyMode = false;
             
-            foreach (Match match in matches.Cast<Match>()) {
+            foreach (Match match in matches) {
                 if (match.Groups[1].Value == "§r") {
                     funkyMode = false;
                 }
