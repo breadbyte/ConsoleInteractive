@@ -12,6 +12,7 @@ namespace ConsoleInteractive {
         
         private static Thread? _readerThread;
         private static CancellationTokenSource? _cancellationTokenSource;
+        private static object ThreadLock = new();
 
         public static void SetInputVisible(bool visible) {
             InternalContext.SuppressInput = !visible;
@@ -30,30 +31,34 @@ namespace ConsoleInteractive {
         /// </summary>
         /// <param name="cancellationToken">Exits from the reader thread when cancelled.</param>
         public static void BeginReadThread(CancellationTokenSource cancellationTokenSource) {
-            if (_readerThread is { IsAlive: true })  {
-                throw new InvalidOperationException("Console Reader thread is already running.");
+            lock (ThreadLock) {
+                if (_readerThread is { IsAlive: true }) {
+                    throw new InvalidOperationException("Console Reader thread is already running.");
+                }
+
+                _cancellationTokenSource = cancellationTokenSource;
+                _readerThread = new Thread(new ParameterizedThreadStart(KeyListener!)) {
+                    Name = "ConsoleInteractive.ConsoleReader Reader Thread"
+                };
+                _readerThread.Start(_cancellationTokenSource.Token);
             }
-            
-            _cancellationTokenSource = cancellationTokenSource;
-            _readerThread = new Thread(new ParameterizedThreadStart(KeyListener!)) {
-                Name = "ConsoleInteractive.ConsoleReader Reader Thread"
-            };
-            _readerThread.Start(_cancellationTokenSource.Token);
         }
         
         /// <summary>
         /// Stops an existing Console Reader thread, if any.
         /// </summary>
         public static void StopReadThread() {
-            if (_readerThread is { IsAlive: false }) {
-                return;
+            lock (ThreadLock) {
+                if (_readerThread is { IsAlive: false }) {
+                    return;
+                }
+
+                _cancellationTokenSource?.Cancel();
+                InternalContext.BufferInitialized = false;
+                ConsoleBuffer.ClearBackreadBuffer();
+                ConsoleBuffer.FlushBuffer();
+                ConsoleBuffer.ClearCurrentLine();
             }
-            
-            _cancellationTokenSource?.Cancel();
-            InternalContext.BufferInitialized = false;
-            ConsoleBuffer.ClearBackreadBuffer();
-            ConsoleBuffer.FlushBuffer();
-            ConsoleBuffer.ClearCurrentLine();
         }
 
         public static string RequestImmediateInput() {
