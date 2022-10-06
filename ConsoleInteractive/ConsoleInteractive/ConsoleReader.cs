@@ -43,7 +43,7 @@ namespace ConsoleInteractive {
                 _readerThread.Start(_cancellationTokenSource.Token);
             }
         }
-        
+
         /// <summary>
         /// Stops an existing Console Reader thread, if any.
         /// </summary>
