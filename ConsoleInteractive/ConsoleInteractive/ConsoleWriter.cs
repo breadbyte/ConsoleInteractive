@@ -32,11 +32,13 @@ namespace ConsoleInteractive {
     }
 
     internal static class InternalWriter {
+        private readonly static Regex ColorCodeRegex = new(@"\u001B\[\d+m", RegexOptions.Compiled);
+
         private static void Write(string value) {
             int linesAdded = 0;
             foreach (string line in value.Split('\n')) {
                 int lineLen = line.Length;
-                foreach (Match colorCode in Regex.Matches(line, @"\u001B\[\d+m").Cast<Match>())
+                foreach (Match colorCode in ColorCodeRegex.Matches(line))
                     lineLen -= colorCode.Groups[0].Length;
                 linesAdded += (Math.Max(0, lineLen - 1) / InternalContext.CursorLeftPosLimit) + 1;
             }
