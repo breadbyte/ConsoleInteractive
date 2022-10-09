@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace ConsoleInteractive {
     public static class ConsoleReader {
@@ -14,17 +12,14 @@ namespace ConsoleInteractive {
         
         private static Thread? _readerThread;
         private static CancellationTokenSource? _cancellationTokenSource;
-        private static object ThreadLock = new(); 
+        private static object ThreadLock = new();
 
         public static void SetInputVisible(bool visible) {
             InternalContext.SuppressInput = !visible;
         }
 
         public static Buffer GetBufferContent() {
-            return new Buffer() {
-                Text = ConsoleBuffer.UserInputBuffer.ToString(),
-                CursorPosition = ConsoleBuffer.BufferPosition
-            };
+            return new Buffer(ConsoleBuffer.UserInputBuffer.ToString()!, ConsoleBuffer.BufferPosition);
         }
 
         public static void ClearBuffer() {
@@ -42,8 +37,9 @@ namespace ConsoleInteractive {
                 }
 
                 _cancellationTokenSource = cancellationTokenSource;
-                _readerThread = new Thread(new ParameterizedThreadStart(KeyListener!));
-                _readerThread.Name = "ConsoleInteractive.ConsoleReader Reader Thread";
+                _readerThread = new Thread(new ParameterizedThreadStart(KeyListener!)) {
+                    Name = "ConsoleInteractive.ConsoleReader Reader Thread"
+                };
                 _readerThread.Start(_cancellationTokenSource.Token);
             }
         }
@@ -66,7 +62,7 @@ namespace ConsoleInteractive {
         }
 
         public static string RequestImmediateInput() {
-            AutoResetEvent autoEvent = new AutoResetEvent(false);
+            AutoResetEvent autoEvent = new(false);
             var bufferString = string.Empty;
             
             BeginReadThread(new CancellationTokenSource());
@@ -237,6 +233,11 @@ namespace ConsoleInteractive {
         public record Buffer {
             public string Text { get; init; }
             public int CursorPosition { get; init; }
+
+            public Buffer(string text, int cursorPosition) {
+                Text = text;
+                CursorPosition = cursorPosition;
+            }
         }
     }
 }

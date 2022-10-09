@@ -1,12 +1,9 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
-using System.Threading.Tasks;
 using PInvoke;
 
 namespace ConsoleInteractive {
@@ -35,12 +32,13 @@ namespace ConsoleInteractive {
     }
 
     internal static class InternalWriter {
+        private readonly static Regex ColorCodeRegex = new(@"\u001B\[\d+m", RegexOptions.Compiled);
+
         private static void Write(string value) {
             int linesAdded = 0;
-            foreach (string line in value.Split('\n'))
-            {
+            foreach (string line in value.Split('\n')) {
                 int lineLen = line.Length;
-                foreach (Match colorCode in Regex.Matches(line, @"\u001B\[\d+m"))
+                foreach (Match colorCode in ColorCodeRegex.Matches(line))
                     lineLen -= colorCode.Groups[0].Length;
                 linesAdded += (Math.Max(0, lineLen - 1) / InternalContext.CursorLeftPosLimit) + 1;
             }
@@ -89,7 +87,7 @@ namespace ConsoleInteractive {
         }
 
         public static void WriteLineFormatted(string value) {
-            StringBuilder b = new StringBuilder();
+            StringBuilder b = new();
             var matches = InternalContext.FormatRegex.Matches(value);
 
             if (matches.Count == 0) {
