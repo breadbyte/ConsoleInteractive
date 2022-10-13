@@ -32,7 +32,7 @@ namespace ConsoleInteractive {
     }
 
     internal static class InternalWriter {
-        private readonly static Regex ColorCodeRegex = new(@"\u001B\[\d+m", RegexOptions.Compiled);
+        private readonly static Regex ColorCodeRegex = new(@"\u001B\[[\d;]+m", RegexOptions.Compiled);
 
         private static void Write(string value) {
             int linesAdded = 0;
