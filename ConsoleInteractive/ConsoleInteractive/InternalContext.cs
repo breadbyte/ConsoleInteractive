@@ -9,13 +9,21 @@ namespace ConsoleInteractive {
     internal static class InternalContext {
         internal static object WriteLock = new();
         internal static Regex FormatRegex = new Regex("(§[0-9a-fk-orw-z])((?:[^§]|§[^0-9a-fk-orw-z])*)", RegexOptions.Compiled);
+        internal static Regex ColorCodeRegex = new Regex(@"(\u001B\[([\d;]+)m)([^\u001B]*)", RegexOptions.Compiled);
         internal static volatile int CurrentCursorLeftPos = 0;
         internal static volatile int CurrentCursorTopPos = 0;
         internal static volatile int CursorLeftPosLimit = Console.BufferWidth;
         internal static volatile int CursorTopPosLimit = Console.BufferHeight;
         internal static volatile bool _suppressInput = false;
         internal static volatile bool BufferInitialized = false;
-        
+        internal static ColorMode ConsoleColorMode = ColorMode.None;
+
+        internal enum ColorMode { 
+            None,
+            WindowsAPI,
+            VTCode
+        }
+
         internal static bool SuppressInput {
             get { return _suppressInput; }
             set {

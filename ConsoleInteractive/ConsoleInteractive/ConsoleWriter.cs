@@ -7,84 +7,91 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using ConsoleInteractive.WriterImpl;
 using PInvoke;
+using static ConsoleInteractive.FormattedStringBuilder;
 
 namespace ConsoleInteractive {
     public static class ConsoleWriter {
+        private static WriterBase? WriterImpl = null; 
 
         public static void Init() {
             SetWindowsConsoleAnsi();
+            CheckConsoleCapability();
             Console.Clear();
         }
 
         private static void SetWindowsConsoleAnsi() {
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) {
-                Kernel32.GetConsoleMode(Kernel32.GetStdHandle(Kernel32.StdHandle.STD_OUTPUT_HANDLE), out var cModes);
-                Kernel32.SetConsoleMode(Kernel32.GetStdHandle(Kernel32.StdHandle.STD_OUTPUT_HANDLE), cModes | Kernel32.ConsoleBufferModes.ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+                if (OperatingSystem.IsWindowsVersionAtLeast(10)) {
+                    Kernel32.GetConsoleMode(Kernel32.GetStdHandle(Kernel32.StdHandle.STD_OUTPUT_HANDLE), out var cModes);
+                    Kernel32.SetConsoleMode(Kernel32.GetStdHandle(Kernel32.StdHandle.STD_OUTPUT_HANDLE), cModes | Kernel32.ConsoleBufferModes.ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+                } else {
+                    // If we're not on Win10+, default to the Windows API Coloring system.
+                    InternalContext.ConsoleColorMode = InternalContext.ColorMode.WindowsAPI;
+                    WriterImpl = new WindowsWriter();
+                    return;
+                }
+            }
+
+            // Use VT Code Coloring by default.
+            InternalContext.ConsoleColorMode = InternalContext.ColorMode.VTCode;
+            WriterImpl = new CrossPlatformWriter();
+        }
+
+        public static void ForceUseWindowsAPI() {
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) {
+                throw new InvalidOperationException("Windows API cannot be used on non-Windows platforms.");
+            }
+
+            InternalContext.ConsoleColorMode = InternalContext.ColorMode.WindowsAPI;
+            WriterImpl = new WindowsWriter();
+        }
+
+        private static void CheckConsoleCapability() {
+
+            if (Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER") != null) {
+                InternalContext.ConsoleColorMode = InternalContext.ColorMode.None;
+            }
+
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux)) {
+                if (Environment.GetEnvironmentVariable("TERM") != null) {
+                    // TODO: Check our color range?
+                }
             }
         }
 
-        public static void Write(string value) {
-            InternalWriter.Write(value);
+        public static void WriteLine(FormattedStringBuilder formattedString) { 
+            WriterImpl!.Write(formattedString);
         }
 
         public static void WriteLine(string value) {
-            InternalWriter.WriteLine(value);
+            WriterImpl!.Write(value);
         }
     }
 
     internal static class InternalWriter {
-        internal static void Write(string value) {
-            int linesAdded = 0;
-            foreach (string line in value.Split('\n'))
-            {
-                int lineLen = line.Length;
-                foreach (Match colorCode in Regex.Matches(line, @"\u001B\[\d+m"))
-                    lineLen -= colorCode.Groups[0].Length;
-                linesAdded += (Math.Max(0, lineLen - 1) / InternalContext.CursorLeftPosLimit) + 1;
-            }
-            
-            lock (InternalContext.WriteLock) {
-                
-                // If the buffer is initialized, then we should get the current cursor position
-                // because we potentially are writing over user input.
-                //
-                // 0 otherwise, since we know that there is no user input,
-                // so we can start at the beginning.
-                int currentCursorPos = 0;
-                if (InternalContext.BufferInitialized) {
-                    currentCursorPos = InternalContext.CurrentCursorLeftPos;
-                    ConsoleBuffer.ClearVisibleUserInput();
-                }
-                else
-                    // Clears the entire line. Not optimal as it also clears blank spaces,
-                    // but ensures that the entire line is cleared.
-                    ConsoleBuffer.ClearCurrentLine();
-                
-                Console.WriteLine(value);
+        /*
+         * The InternalWriter is the class where the actual writing of the string to the console happens.
+         * This class is responsible for reporting the current position on the console.
+         *
+         * The InternalWriter currently requires going through a Write Chain, in which
+         * 1. All newlines are split beforehand and processed individually
+         * 2. If the string contains color and formatting information, it is passed in as a StringData. Otherwise, it is passed as a regular string. 
+         */
 
-                // Determine if we need to use the previous top position.
-                // i.e. vertically constrained.
-                if (InternalContext.CurrentCursorTopPos + linesAdded >= InternalContext.CursorTopPosLimit)
-                    Interlocked.Exchange(ref InternalContext.CurrentCursorTopPos, InternalContext.CursorTopPosLimit - 1);
-                else 
-                    Interlocked.Add(ref InternalContext.CurrentCursorTopPos, linesAdded);
 
-                // Only redraw if we have a buffer initialized.
-                if (InternalContext.BufferInitialized) {
-                    ConsoleBuffer.RedrawInput();
-
-                    // Need to redraw the prefix manually in cases that RedrawInput() doesn't
-                    ConsoleBuffer.DrawPrefix();
-                }
-
-                Console.SetCursorPosition(currentCursorPos, InternalContext.CurrentCursorTopPos);
-                InternalContext.SetLeftCursorPosition(currentCursorPos);
-            }
+        // Start of the Write Chain.
+        // TODO FIXME: Does not detect escape codes in the value
+        internal static void BeginWriteChain(string value) {
+            // Split each newline into it's own individual string.
+            // var splitted = SplitNewLine(value);
+            // FIXME
+            // Start writing each individual splitted line.
+            //foreach (var split in splitted) {
+            //   WriteInternal(split);
+            //}
         }
-
-        public static void WriteLine(string value) {
-            Write(value);
-        }
+        
     }
 }
