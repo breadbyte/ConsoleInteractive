@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace ConsoleInteractive.Extension; 
+namespace ConsoleInteractive.Extensions; 
 
 public static class String {
 

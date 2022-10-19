@@ -8,16 +8,18 @@ namespace ConsoleInteractive.WriterImpl;
 /// This abstract class is the base class for all writer implementations.
 /// </summary>
 public abstract class WriterBase {
-    #region Implementation Detail
+    #region For other writers to implement.
 
     // Writes a StringData.
-    public abstract void Write(FormattedStringBuilder.StringData data);
+    public abstract void Write(StringData data);
 
     // Writes a list of StringDatas in a chain.
     // This allows us to use different colors and formatting for a single line but multiple StringData's.
-    public abstract void WriteStringDataChain(List<FormattedStringBuilder.StringData> data);
+    public abstract void WriteStringDataChain(List<StringData> data);
+    
     
     // Writes a plain string onto the console.
+    // FIXME: Does not account for newlines
     public virtual void Write(string data) {
         __WriteInternal(data, DetermineLineCount(data.Length));
     }
@@ -33,11 +35,13 @@ public abstract class WriterBase {
     
     #endregion
 
+    internal static volatile int __WriterInternalPositionState = 0;
+
     // Directly passes the string to the WriteInternal function.
     // Skips all user input checks.
     // ONLY USE IF you are absolutely certain that your string does not have any data
     // that the checks will clean up, i.e. newlines!
-    public static void __WriteUnsafe(string value) {
+    internal static void __WriteUnsafe(string value) {
         __WriteInternal(value, DetermineLineCount(value.Length));
     }
     
@@ -67,9 +71,7 @@ public abstract class WriterBase {
             __RestoreBufferState();
         }
     }
-
-    internal static volatile int __WriterInternalPositionState = 0;
-
+    
     internal static void __StashBufferState() {
 
         // Stashes the cursor state internally.

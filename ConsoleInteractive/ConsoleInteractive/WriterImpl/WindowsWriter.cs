@@ -24,7 +24,7 @@ public class WindowsWriter : WriterBase {
         }
     }
 
-    public override void Write(FormattedStringBuilder.StringData data) {
+    public override void Write(StringData data) {
 
         // Preferably, we wouldn't have this as Windows has deprecated this API in favor of terminal VT sequences.
         // See: https://learn.microsoft.com/en-us/windows/console/classic-vs-vt
@@ -58,7 +58,7 @@ public class WindowsWriter : WriterBase {
         __RestoreBufferState();
     }
 
-    public override void WriteStringDataChain(List<FormattedStringBuilder.StringData> data) {
+    public override void WriteStringDataChain(List<StringData> data) {
         var chainLength = 0;
 
         foreach (var strData in data) {
@@ -89,7 +89,7 @@ public class WindowsWriter : WriterBase {
 
     #region Helper functions for the Windows API
 
-    private static void ApplyFormatting(FormattedStringBuilder.StringData strData) {
+    private static void ApplyFormatting(StringData strData) {
 
         // Applies the formatting assigned to a StringData.
         // Does not clear the formatting assigned afterwards.
@@ -101,16 +101,16 @@ public class WindowsWriter : WriterBase {
         // Step 1: Process color if available
         if (strData.ForegroundColor != null) {
             var color = strData.ForegroundColor.Value;
-            Console.ForegroundColor = FormattedStringBuilder.GetClosestDefaultColor(color.R, color.G, color.B);
+            Console.ForegroundColor = Color.GetClosestDefaultColor(color.R, color.G, color.B);
         }
 
         if (strData.BackgroundColor != null) {
             var color = strData.BackgroundColor.Value;
-            Console.BackgroundColor = FormattedStringBuilder.GetClosestDefaultColor(color.R, color.G, color.B);
+            Console.BackgroundColor = Color.GetClosestDefaultColor(color.R, color.G, color.B);
         }
 
         // All formatting options except Underline is not supported in Windows API mode.
-        if (strData.Formatting.HasFlag(FormattedStringBuilder.Formatting.Underline)) {
+        if (strData.Formatting.HasFlag(Formatting.Underline)) {
             stdoutHandle = Kernel32.GetStdHandle(Kernel32.StdHandle.STD_OUTPUT_HANDLE);
 
             // Get the current console attributes, and set the console text attribute to add an underscore to the text.
