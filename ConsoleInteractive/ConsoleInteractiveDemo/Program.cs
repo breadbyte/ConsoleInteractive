@@ -12,14 +12,15 @@ namespace ConsoleInteractiveDemo {
 
             //var splitted = "[38;2;12;12;12mHello World!";
             var str = @"[0m[T3] ---[0m[0m[38;2;12;12;12m[T3] Black Text[0m\n[0m[T3] 1 ---[0m[0m[38;2;0;55;218m[T3] Dark Blue Text[0m\n[0m[T3] 2 ---[0m";
-
+            var str3 = "This is a test string";
             FormattedStringBuilder f = new();
+            f.Append(str3);
             //Debugger.Break();
             FormattedStringBuilder sb = new();
             FormattedStringBuilder sb2 = new();
             ConsoleWriter.Init();
 
-            sb.AppendTerminalCodeMarkup(str);
+            sb.AppendTerminalCode(str);
             
             /*sb.AppendLine("[T3] ---")
               .AppendLine("[T3] Black Text", Color.Black)
@@ -125,13 +126,15 @@ namespace ConsoleInteractiveDemo {
 
             var tF = new Thread(new ThreadStart(() => {
                 Debugger.Break();
+                ConsoleWriter.WriteLine(f);
+                Debugger.Break();
                 ConsoleWriter.WriteLine(sb);
+                ConsoleWriter.WriteLine(sb2);
                 //ConsoleWriter.Write("TEST --- \r\n");
             })) {IsBackground = true};
             
             //t1.Start();
             //t2.Start();
-            tF.Start();
 
             ConsoleReader.BeginReadThread(cts);
             ConsoleReader.MessageReceived += (sender, s) => {
@@ -141,6 +144,8 @@ namespace ConsoleInteractiveDemo {
                     ConsoleWriter.WriteLine(s);
                 }
             };
+            
+            tF.Start();
         }
     }
 }

@@ -34,8 +34,6 @@ public class WindowsWriter : WriterBase {
         // Write normally to the console.
         // We setup all the color and formatting beforehand, so it applies to the output.
         // Restore the state of the colors afterward.
-
-        throw new NotImplementedException();
         
         // Make sure to pass the string to the regular write function,
         // so the console positioning code still works fine.

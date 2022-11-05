@@ -111,6 +111,41 @@ namespace ConsoleInteractive {
             InternalContext.BufferInitialized = true;
         }
 
+        // Change [start, end) in UserInputBuffer to newString, and move the cursor to the end of the newString in the buffer
+        // The length of newString is not guaranteed to be equal to (end - start)
+        // The length of interval [start, end) may be zero (start == end)
+        // Example (use * for cursor):
+        // "/*" --> Replace(1, 1, "help") --> "/help*"
+        // "/ani*" --> Replace(1, 4, "animation") --> "/animation*"
+        // "/h* animation" --> Replace(1, 2, "help") --> "/help* animation"
+        internal static void Replace(int start, int end, string newString) {
+            int lenDif = newString.Length - (end - start);
+
+            int curIndex = 0;
+
+            // Skip equal prefixes.
+            while (curIndex + start < end && curIndex < newString.Length && UserInputBuffer[curIndex + start] == newString[curIndex]) {
+                ++curIndex;
+            }
+            int startIndex = curIndex;
+
+            // Modify existing characters
+            while (curIndex + start < end && curIndex < newString.Length) {
+                UserInputBuffer[curIndex + start] = newString[curIndex];
+                ++curIndex;
+            }
+
+            // Add new characters or delete extra characters
+            if (curIndex < newString.Length) {
+                UserInputBuffer.Insert(curIndex + start, newString[curIndex..]);
+            } else if (curIndex + start < end) {
+                UserInputBuffer.Remove(curIndex + start, end - (curIndex + start));
+            }
+
+            // Update BufferPosition
+
+            // Redraw input & Update Cursor
+        }
         /// <summary>
         /// Inserts a character in the user input buffer.
         /// </summary>
