@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Linq;
 using System.Reflection;
 using System.Threading;
 using ConsoleInteractive;
@@ -10,7 +11,7 @@ namespace ConsoleInteractiveDemo {
         static void Main(string[] args) {
 
             //var splitted = "[38;2;12;12;12mHello World!";
-            var str = @"[0m[T3] ---[0m[0m[38;2;12;12;12m[T3] Black Text[0m[0m[T3] 1 ---[0m[0m[38;2;0;55;218m[T3] Dark Blue Text[0m[0m[T3] 2 ---[0m";
+            var str = @"[0m[T3] ---[0m[0m[38;2;12;12;12m[T3] Black Text[0m\n[0m[T3] 1 ---[0m[0m[38;2;0;55;218m[T3] Dark Blue Text[0m\n[0m[T3] 2 ---[0m";
 
             FormattedStringBuilder f = new();
             //Debugger.Break();
@@ -18,7 +19,9 @@ namespace ConsoleInteractiveDemo {
             FormattedStringBuilder sb2 = new();
             ConsoleWriter.Init();
 
-            sb.AppendLine("[T3] ---")
+            sb.AppendTerminalCodeMarkup(str);
+            
+            /*sb.AppendLine("[T3] ---")
               .AppendLine("[T3] Black Text", Color.Black)
               .AppendLine("[T3] 1 ---")
               .AppendLine("[T3] Dark Blue Text", Color.DarkBlue)
@@ -29,7 +32,7 @@ namespace ConsoleInteractiveDemo {
               .AppendLine("[T3] 4 ---")
               .AppendLine("[T3] Dark Red Text", Color.DarkRed)
               .AppendLine("[T3] 5 ---")
-              .AppendLine("[T3] Dark Purple Text", Color.DarkMagenta);/*
+              .AppendLine("[T3] Dark Purple Text", Color.DarkMagenta);
               .AppendLine("[T3] 6 ---")
               .AppendLine("[T3] Gold Text", Color.Yellow)
               .AppendLine("[T3] 7 ---")
@@ -67,17 +70,16 @@ namespace ConsoleInteractiveDemo {
               .Append("[T3] ")
               .AppendLine("Italic Text", formatting: Formatting.Italic);*/
               //.AppendLine("This text \n has an n newline and \r\n an rn newline!");
-            
             sb2.AppendMarkup("text without match aaaaaaa §aText §n§cwith §m§bMixed §1C§2o§3l§r§4o§5r§6s§a!");
-            var expanded = sb.Expand();
-            var built = sb2.Flatten();
-            var splits = built.SplitNewLines();
-            foreach (var split in splits) {
-                f.AppendTerminalCodeMarkup(split);
-            }
+            //var expanded = sb.Expand();
+            //var built = sb2.Flatten();
+            //var splits = built.SplitNewLines();
+            //foreach (var split in splits) {
+            //    f.AppendTerminalCodeMarkup(split);
+            //}
             //Debugger.Break();
-            ConsoleWriter.ForceUseWindowsAPI();
-            ConsoleWriter.WriteLine(sb);
+            //ConsoleWriter.ForceUseWindowsAPI();
+            //ConsoleWriter.WriteLine(str);
             //ConsoleWriter.WriteLine(sb);
             //ConsoleWriter.WriteLine(sb);
             //Debugger.Break();

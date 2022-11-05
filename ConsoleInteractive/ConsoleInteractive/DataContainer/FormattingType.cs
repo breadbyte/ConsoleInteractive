@@ -3,7 +3,7 @@
 namespace ConsoleInteractive; 
 
 [Flags]
-public enum Formatting {
+public enum FormattingType {
     None            =      0, // \u001B[0m -- None formatting should be treated the same as Reset.
     Obfuscated      = 1 << 0, // Replace all affected character(s) with \u2588
     Bold            = 1 << 1, // \u001B[1m

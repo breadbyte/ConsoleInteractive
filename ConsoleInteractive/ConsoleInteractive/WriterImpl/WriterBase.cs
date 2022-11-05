@@ -8,6 +8,14 @@ namespace ConsoleInteractive.WriterImpl;
 /// This abstract class is the base class for all writer implementations.
 /// </summary>
 public abstract class WriterBase {
+    
+    // Print a simple line to the console.
+    // The only reason why this is unsafe is because
+    // it skips all text sanitization checks.
+    public void WriteUnsafe(string text) {
+        __WriteUnsafe(text);
+    }
+    
     #region For other writers to implement.
 
     // Writes a StringData.
@@ -19,9 +27,10 @@ public abstract class WriterBase {
     
     
     // Writes a plain string onto the console.
-    // FIXME: Does not account for newlines
     public virtual void Write(string data) {
-        __WriteInternal(data, DetermineLineCount(data.Length));
+        FormattedStringBuilder f = new FormattedStringBuilder();
+        f.Append(data);
+        Write(f);
     }
     
     // Writes a FormattedStringBuilder to the console.

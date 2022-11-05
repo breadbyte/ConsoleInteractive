@@ -30,7 +30,15 @@ public struct Color {
     public static Color Magenta		=> new Color(180,0,158);
     public static Color Cyan		=> new Color(97,214,214);
     public static Color DarkGray	=> new Color(118,118,118);
-    
+
+    public string BuildAsForegroundColorVtCode() {
+        return $"\u001B[38;2;{R};{G};{B}m";
+    }
+
+    public string BuildAsBackgroundColorVtCode() {
+        return $"\u001B[48;2;{R};{G};{B}m";
+    }
+
     // Color values taken from https://en.wikipedia.org/wiki/ANSI_escape_code#3-bit_and_4-bit using the Windows 10 Console color set
     public static Dictionary<ConsoleColor, ((byte r, byte g, byte b) rgb, string code)> DefaultColors = new() {
         {ConsoleColor.Black,        ((12,12,12), "\u001B[30m")},    // §0, Black

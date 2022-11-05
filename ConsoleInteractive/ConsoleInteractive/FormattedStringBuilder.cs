@@ -11,12 +11,16 @@ namespace ConsoleInteractive;
 public class FormattedStringBuilder {
     public List<StringData> strings = new();
 
+    /// <summary>
+    /// Appends markup to the FormattedStringBuilder.
+    /// Markup consists of § codes.
+    /// </summary>
     public FormattedStringBuilder AppendMarkup(string text) {
         var matches = InternalContext.FormatRegex.Matches(text);
 
         // No markup can be parsed from the text, treat it as a regular string.
         if (matches.Count == 0) {
-            return Append(text);
+            return UnsanitizedAppend(text);
         }
 
         // Check if the string starts with an identifier character.
@@ -27,7 +31,7 @@ public class FormattedStringBuilder {
         }
 
         Color? currentColor = null;
-        Formatting currentFormatting = Formatting.None;
+        FormattingType currentFormattingType = FormattingType.None;
         // match.Groups[0] = The entire matched part
         // match.Groups[1] = The identifier
         // match.Groups[2] = The string after the identifier
@@ -35,12 +39,12 @@ public class FormattedStringBuilder {
             
             if (match.Groups[1].Value == "§r") {
                 currentColor = null;
-                currentFormatting = Formatting.None;
+                currentFormattingType = FormattingType.None;
             }
 
             if (match.Groups[1].Value == "§k") {
                 // Square character in place of §k.
-                strings.Add(new StringData(new string('\u2588', match.Groups[2].Length), false, null, currentColor, currentFormatting));
+                strings.Add(new StringData(new string('\u2588', match.Groups[2].Length), false, null, currentColor, currentFormattingType));
             }
             
             // Parse the current line formatting.
@@ -50,10 +54,10 @@ public class FormattedStringBuilder {
                 if (result.IsColorFormatting)
                     currentColor = result.TextColor!.Value;
                 if (result.IsTextFormatting) {
-                    if (result.Formatting == Formatting.None)
-                        currentFormatting = Formatting.None;
+                    if (result.FormattingType == FormattingType.None)
+                        currentFormattingType = FormattingType.None;
                     else
-                        currentFormatting |= result.Formatting;
+                        currentFormattingType |= result.FormattingType;
                 }
             }
             
@@ -61,18 +65,22 @@ public class FormattedStringBuilder {
             if (match.Groups[2].Length == 0)
                 continue;
 
-            strings.Add(new StringData(match.Groups[2].Value, false, null, currentColor, currentFormatting));
+            strings.Add(new StringData(match.Groups[2].Value, false, null, currentColor, currentFormattingType));
         }
 
         return this;
     }
 
+    /// <summary>
+    /// Appends terminal codes to the FormattedStringBuilder.
+    /// Used for extensive formatting and coloring in the console.
+    /// </summary>
     public FormattedStringBuilder AppendTerminalCodeMarkup(string text) {
         var matches = InternalContext.ColorCodeRegex.Matches(text);
         
         // No markup can be parsed from the text, treat it as a regular string.
         if (matches.Count == 0) {
-            return Append(text);
+            return UnsanitizedAppend(text);
         }
         
         // Check if the string starts with the identifier character, \u001B (esc) in this case.
@@ -84,7 +92,7 @@ public class FormattedStringBuilder {
         
         Color? currentColor = null;
         Color? currentbgColor = null;
-        Formatting currentFormatting = Formatting.None;
+        FormattingType currentFormattingType = FormattingType.None;
 
         // match.Groups[0] = The entire matched part
         // match.Groups[1] = The code identifier (for formatting or color type)
@@ -112,19 +120,19 @@ public class FormattedStringBuilder {
                 // it is most likely a formatting code.
                 switch (Convert.ToInt32(colorValue)) {
                     case 0:
-                        currentFormatting = Formatting.None;
+                        currentFormattingType = FormattingType.None;
                         break;
                     case 1:
-                        currentFormatting |= Formatting.Bold;
+                        currentFormattingType |= FormattingType.Bold;
                         break;
                     case 3:
-                        currentFormatting |= Formatting.Italic;
+                        currentFormattingType |= FormattingType.Italic;
                         break;
                     case 4:
-                        currentFormatting |= Formatting.Underline;
+                        currentFormattingType |= FormattingType.Underline;
                         break;
                     case 9:
-                        currentFormatting |= Formatting.Strikethrough;
+                        currentFormattingType |= FormattingType.Strikethrough;
                         break;
                     default:
                         Debug.WriteLine($"Unknown formatting code {colorValue}. Skipping processing.");
@@ -136,40 +144,74 @@ public class FormattedStringBuilder {
             if (match.Groups[3].Value.Length == 0)
                 continue;
             
-            strings.Add(new StringData(match.Groups[3].Value, false, currentbgColor, currentColor, currentFormatting));
+            strings.Add(new StringData(match.Groups[3].Value, false, currentbgColor, currentColor, currentFormattingType));
         }
 
         return this;
     }
+    
+    /// <summary>
+    /// Appends both markup and terminal codes to the FormattedStringBuilder.
+    /// Used for sanitizing plain string inputs.
+    /// </summary>
+    public FormattedStringBuilder AppendMarkupAndTerminalCode(string text) {
+        // To allow for both Markup and Color Codes in the same string,
+        // make sure to AppendMarkup first (this processes the § markup into StringData),
+        // then flatten the entire string to turn everything into color codes.
+        // Then, expand everything back into a list of StringData.
+        AppendMarkup(text);
+        var flat = Flatten();
 
-    public FormattedStringBuilder MarkupAndColorCodeMarkup() {
-        // TODO:
-        // To allow both Markup and Color Code Markup,
-        // make sure to AppendMarkup first (this processes the § color codes into StringData),
-        // then call AppendTerminalCodeMarkup with Build().
-        // This will allow the code to process the § color codes first,
-        // and the VT color codes lastly.
-        throw new NotImplementedException();
-    }
-
-    public FormattedStringBuilder AppendLineMarkup(string text) {
-        return AppendMarkup(text + Environment.NewLine);
-    }
-
-    public FormattedStringBuilder Append(string text, Color? foregroundColor = null, Color? backgroundColor = null, Formatting formatting = Formatting.None) {
-        strings.Add(new StringData(text, false, backgroundColor, foregroundColor, formatting));
+        AppendTerminalCodeMarkup(flat);
         return this;
+    }
+
+    /// <summary>
+    /// Appends a complete StringData to the FormattedStringBuilder.
+    /// </summary>
+    public FormattedStringBuilder AppendStringData(StringData stringData) {
+        strings.Add(stringData);
+        return this;
+    }
+
+    /// <summary>
+    /// Appends a string to the FormattedStringBuilder.
+    /// </summary>
+    public FormattedStringBuilder Append(string text, Color? foregroundColor = null, Color? backgroundColor = null, FormattingType formattingType = FormattingType.None) {
+        // Ensure that the data is not lost, but the text is properly sanitized.
+        return SanitizedAppend(
+            foregroundColor?.BuildAsForegroundColorVtCode() 
+            + backgroundColor?.BuildAsBackgroundColorVtCode() 
+            + formattingType.BuildFormattingVtCode() 
+            + text);
     }
     
-    public FormattedStringBuilder AppendLine(string text, Color? foregroundColor = null, Color? backgroundColor = null, Formatting formatting = Formatting.None) {
-        strings.Add(new StringData(text, true, backgroundColor, foregroundColor, formatting));
+    /// <summary>
+    /// Appends a string to the FormattedStringBuilder, adding a NewLine after the string.
+    /// </summary>
+    public FormattedStringBuilder AppendLine(string text, Color? foregroundColor = null, Color? backgroundColor = null, FormattingType formattingType = FormattingType.None) {
+        return Append(text + Environment.NewLine, foregroundColor, backgroundColor, formattingType);
+    }
+
+    private FormattedStringBuilder SanitizedAppend(string input) {
+        // Step 1: Split the string into it's individual lines.
+        var newlineSplit = input.SplitNewLines();
+        
+        // Step 2: Filter each line for markup.
+        foreach (var split in newlineSplit) {
+            AppendMarkupAndTerminalCode(split);
+        }
+
         return this;
     }
-    public FormattedStringBuilder AppendLine() {
-        strings.Add(new StringData(Environment.NewLine, true));
+    private FormattedStringBuilder UnsanitizedAppend(string text) {
+        strings.Add(new StringData(text, false,null,null, FormattingType.None));
         return this;
     }
 
+    // Flatten the StringBuilder into a single string.
+    // Only used for transferring data between StringBuilders.
+    // Do not print the output to the console, as it can have catastrophic results!
     public string Flatten() {
         StringBuilder internalStringBuilder = new StringBuilder();
 
@@ -182,8 +224,15 @@ public class FormattedStringBuilder {
         
         return retval;
     }
-
-    // Expand the data into individual lines to print.
+    
+    /// <summary>
+    /// Expand the data into individual lines to print.
+    /// Used for printing to the console. 
+    /// </summary>
+    /// <returns>A List of Lists of StringData. Each individual list is a line. and each StringData is a word in a line.</returns>
+    //
+    // The first List<> is defining lists of lines,
+    // the Lists inside being a list of words in a line.
     public List<List<StringData>> Expand() {
 
         // Splits the .Append() and .AppendNewLine() in the list of `StringData`s.
@@ -215,12 +264,12 @@ public class FormattedStringBuilder {
                 expanded.Add(currentList);
             else {
                 // If the last item is an Append, make sure to append our own newline at the end.
-                // This is the finalization stage, so no new strings will be appended to the string
+                // This is the finalization stage, so no new strings will be appended to the string anyways
                 // and we can safely finalize the last string into an AppendNewLine.
                 
                 var lastItem = currentList.Last();
                 currentList.RemoveAt(currentList.Count - 1);
-                currentList.Add(new StringData(lastItem.Text, true, lastItem.BackgroundColor, lastItem.ForegroundColor, lastItem.Formatting));
+                currentList.Add(new StringData(lastItem.Text, true, lastItem.BackgroundColor, lastItem.ForegroundColor, lastItem.FormattingType));
                 expanded.Add(currentList);
             }
         }
@@ -229,7 +278,7 @@ public class FormattedStringBuilder {
 
         void AppendToListWithSplit(string rawStr, StringData dataToCopy) {
             foreach (var str in rawStr.SplitNewLines()) {
-                currentList.Add(new StringData(str, false, dataToCopy.BackgroundColor, dataToCopy.ForegroundColor, dataToCopy.Formatting));
+                currentList.Add(new StringData(str, false, dataToCopy.BackgroundColor, dataToCopy.ForegroundColor, dataToCopy.FormattingType));
             }
         }
     }

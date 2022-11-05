@@ -3,18 +3,18 @@
 namespace ConsoleInteractive; 
 
 public struct FormattingResult {
-    public FormattingResult(bool isValidFormatting = false, bool isTextFormatting = false, bool isColorFormatting = false, Color? textColor = null, Formatting formatting = Formatting.None) {
+    public FormattingResult(bool isValidFormatting = false, bool isTextFormatting = false, bool isColorFormatting = false, Color? textColor = null, FormattingType formattingType = FormattingType.None) {
         IsTextFormatting = isTextFormatting;
         IsColorFormatting = isColorFormatting;
         TextColor = textColor;
-        Formatting = formatting;
+        FormattingType = formattingType;
     }
 
     public bool IsValidFormatting = false;
     public bool IsColorFormatting = false;
     public bool IsTextFormatting = false;
     public Color? TextColor = null;
-    public Formatting Formatting = Formatting.None;
+    public FormattingType FormattingType = FormattingType.None;
 
     public FormattingResult ColorFormatting(Color textColor) {
         IsValidFormatting = true;
@@ -23,10 +23,10 @@ public struct FormattingResult {
         return this;
     }
 
-    public FormattingResult TextFormatting(Formatting formatting) {
+    public FormattingResult TextFormatting(FormattingType formattingType) {
         IsValidFormatting = true;
         IsTextFormatting = true;
-        Formatting = formatting;
+        FormattingType = formattingType;
         return this;
     }
     
@@ -66,15 +66,15 @@ public struct FormattingResult {
             case 'f':
                 return new FormattingResult().ColorFormatting(Color.White);
             case 'l':
-                return new FormattingResult().TextFormatting(Formatting.Bold);
+                return new FormattingResult().TextFormatting(FormattingType.Bold);
             case 'm':
-                return new FormattingResult().TextFormatting(Formatting.Strikethrough);
+                return new FormattingResult().TextFormatting(FormattingType.Strikethrough);
             case 'n':
-                return new FormattingResult().TextFormatting(Formatting.Underline);
+                return new FormattingResult().TextFormatting(FormattingType.Underline);
             case 'o':
-                return new FormattingResult().TextFormatting(Formatting.Italic);
+                return new FormattingResult().TextFormatting(FormattingType.Italic);
             case 'r':
-                return new FormattingResult().TextFormatting(Formatting.None);
+                return new FormattingResult().TextFormatting(FormattingType.None);
             // TODO: Remove custom formatting
             case 'w':
             // Custom: Background Red;

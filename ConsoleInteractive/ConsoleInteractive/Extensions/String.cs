@@ -13,10 +13,11 @@ public static class String {
         // may opt to use \n for all platforms instead of Environment.NewLine.
         // We need to adjust for this, so we need to split the string multiple times with both newline types.
         // \r is not accounted for, as \r is a rare newline type and is generally not encountered anymore.
-        const string WindowsNewLine = "\r\n";
-        const string LinuxNewLine = "\n";
+        const string WindowsNewLine = "\\r\\n";
+        const string LinuxNewLine = "\\n";
 
         // Make sure to split windows newlines first, as they are \r\n
+        
         var rnSplit = str.Split(WindowsNewLine);
         List<string> nSplit = new();
 

@@ -25,7 +25,7 @@ public class WindowsWriter : WriterBase {
     }
 
     public override void Write(StringData data) {
-
+        
         // Preferably, we wouldn't have this as Windows has deprecated this API in favor of terminal VT sequences.
         // See: https://learn.microsoft.com/en-us/windows/console/classic-vs-vt
         // Due to how the console api works, we need to write it to the console at the same time as parsing the colors and formatting.
@@ -35,6 +35,8 @@ public class WindowsWriter : WriterBase {
         // We setup all the color and formatting beforehand, so it applies to the output.
         // Restore the state of the colors afterward.
 
+        throw new NotImplementedException();
+        
         // Make sure to pass the string to the regular write function,
         // so the console positioning code still works fine.
         var outA = data.AppendNewLine ? data.Text + Environment.NewLine : data.Text;
@@ -94,10 +96,7 @@ public class WindowsWriter : WriterBase {
         // Applies the formatting assigned to a StringData.
         // Does not clear the formatting assigned afterwards.
         // The caller is responsible for restoring the console state afterwards.
-
-        Kernel32.CONSOLE_SCREEN_BUFFER_INFO consoleAttribs = new();
-        IntPtr stdoutHandle = IntPtr.Zero;
-
+        
         // Step 1: Process color if available
         if (strData.ForegroundColor != null) {
             var color = strData.ForegroundColor.Value;
@@ -110,14 +109,13 @@ public class WindowsWriter : WriterBase {
         }
 
         // All formatting options except Underline is not supported in Windows API mode.
-        if (strData.Formatting.HasFlag(Formatting.Underline)) {
-            stdoutHandle = Kernel32.GetStdHandle(Kernel32.StdHandle.STD_OUTPUT_HANDLE);
+        if (strData.FormattingType.HasFlag(FormattingType.Underline)) {
+            var stdoutHandle = Kernel32.GetStdHandle(Kernel32.StdHandle.STD_OUTPUT_HANDLE);
 
             // Get the current console attributes, and set the console text attribute to add an underscore to the text.
             // TODO: Doesn't seem to be working...?
-            Kernel32.GetConsoleScreenBufferInfo(stdoutHandle, out consoleAttribs);
-            Kernel32.SetConsoleTextAttribute(stdoutHandle,
-                consoleAttribs.wAttributes | Kernel32.CharacterAttributesFlags.COMMON_LVB_UNDERSCORE);
+            Kernel32.GetConsoleScreenBufferInfo(stdoutHandle, out var consoleAttribs);
+            Kernel32.SetConsoleTextAttribute(stdoutHandle, consoleAttribs.wAttributes | Kernel32.CharacterAttributesFlags.COMMON_LVB_UNDERSCORE);
         }
     }
 
