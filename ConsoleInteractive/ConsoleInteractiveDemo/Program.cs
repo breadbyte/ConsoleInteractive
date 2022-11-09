@@ -71,7 +71,7 @@ namespace ConsoleInteractiveDemo {
               .Append("[T3] ")
               .AppendLine("Italic Text", formatting: Formatting.Italic);*/
               //.AppendLine("This text \n has an n newline and \r\n an rn newline!");
-            sb2.AppendMarkup("text without match aaaaaaa §aText §n§cwith §m§bMixed §1C§2o§3l§r§4o§5r§6s§a!");
+            sb2.AppendMarkupAndTerminalCode("text [0mwithout [0mmatch aaaaaaa [0m§aText §n§cwith §m§bMixed [0m§1C§2o§3l§r§4o§5r§6s§a!");
             //var expanded = sb.Expand();
             //var built = sb2.Flatten();
             //var splits = built.SplitNewLines();

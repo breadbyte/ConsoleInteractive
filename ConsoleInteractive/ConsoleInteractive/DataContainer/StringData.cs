@@ -24,7 +24,7 @@ public class StringData {
     public Color? ForegroundColor { get; }
     public FormattingType FormattingType { get; } = FormattingType.None;
 
-    public string Build() {
+    public string Build(bool withNewLines = true) {
         StringBuilder internalStringBuilder = new StringBuilder();
 
         // Step 1: Process formatting if available
@@ -48,7 +48,14 @@ public class StringData {
         }
 
         // Step 3: Build the string
-        internalStringBuilder.Append(AppendNewLine ? Text + Environment.NewLine : Text);
+        if (withNewLines) {
+            if (AppendNewLine) {
+                internalStringBuilder.Append(Text + Environment.NewLine);
+            }
+        }
+        else {
+            internalStringBuilder.Append(Text);
+        }
 
         // Ensure that a formatting reset happens at the end of the string.
         internalStringBuilder.Append("\u001B[0m");

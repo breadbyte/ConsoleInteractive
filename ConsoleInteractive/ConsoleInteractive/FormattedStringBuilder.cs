@@ -170,6 +170,8 @@ public class FormattedStringBuilder {
     /// Used for sanitizing plain string inputs.
     /// </summary>
     public FormattedStringBuilder AppendMarkupAndTerminalCode(string text) {
+        // todo: broken
+        
         // To allow for both Markup and Color Codes in the same string,
         // make sure to AppendMarkup first (this processes the § markup into StringData),
         // then flatten the entire string to turn everything into color codes.
@@ -184,7 +186,7 @@ public class FormattedStringBuilder {
     /// <summary>
     /// Appends a complete StringData to the FormattedStringBuilder.
     /// </summary>
-    public FormattedStringBuilder AppendStringData(StringData stringData) {
+    public FormattedStringBuilder Append(StringData stringData) {
         strings.Add(stringData);
         return this;
     }

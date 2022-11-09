@@ -1,30 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
 using PInvoke;
+using static ConsoleInteractive.WriterImpl.BufferHelper;
+using static ConsoleInteractive.WriterImpl.WindowsWriterBufferHelper;
 
 namespace ConsoleInteractive.WriterImpl;
 
 public class WindowsWriter : WriterBase {
 
-    private static ConsoleColor __WriterInternalForegroundColor = ConsoleColor.White;
-    private static ConsoleColor __WriterInternalBackgroundColor = ConsoleColor.Black;
-
-    // UNSAFE FUNCTION
-    // Only used for WindowsAPI color writing system.
-    // Should not be used otherwise, it will mess up the console positioning code
-    // as it is not tracked in this function.
-    private static void __WriteInternalUnsafeNoLine(string text) {
-
-        // Assume the caller will do the housekeeping necessary, i.e.
-        // stashing and restoring the buffer state,
-        // and restoring the cursor position.
-
-        lock (InternalContext.WriteLock) {
-            Console.Write(text);
-        }
-    }
-
-    public override void Write(StringData data) {
+    protected override void InternalWrite(StringData data) {
         
         // Preferably, we wouldn't have this as Windows has deprecated this API in favor of terminal VT sequences.
         // See: https://learn.microsoft.com/en-us/windows/console/classic-vs-vt
@@ -46,7 +30,7 @@ public class WindowsWriter : WriterBase {
         ApplyFormatting(data);
 
         // Begin writing to the console.
-        __WriteInternalUnsafeNoLine(outA);
+        WriteInternalUnsafeNoLine(outA);
 
         __CalculateNextCursorTopPosition(DetermineLineCount(chainLength));
 
@@ -58,7 +42,7 @@ public class WindowsWriter : WriterBase {
         __RestoreBufferState();
     }
 
-    public override void WriteStringDataChain(List<StringData> data) {
+    protected override void InternalWriteStringDataChain(List<StringData> data) {
         var chainLength = 0;
 
         foreach (var strData in data) {
@@ -74,7 +58,7 @@ public class WindowsWriter : WriterBase {
             ApplyFormatting(strData);
 
             // Begin writing to the console.
-            __WriteInternalUnsafeNoLine(strData.Text);
+            WriteInternalUnsafeNoLine(strData.Text);
         }
 
         __CalculateNextCursorTopPosition(DetermineLineCount(chainLength));
@@ -87,14 +71,36 @@ public class WindowsWriter : WriterBase {
         __RestoreBufferState();
     }
 
-    #region Helper functions for the Windows API
+    protected override void InternalWriteUnsafe(string data) {
+        WriteInternalUnsafeNoLine(data + Environment.NewLine);
+    }
+}
 
-    private static void ApplyFormatting(StringData strData) {
+static class WindowsWriterBufferHelper {
+    internal static ConsoleColor __WriterInternalForegroundColor = ConsoleColor.White;
+    internal static ConsoleColor __WriterInternalBackgroundColor = ConsoleColor.Black;
+
+    // UNSAFE FUNCTION
+    // Only used for WindowsAPI color writing system.
+    // Should not be used otherwise, it will mess up the console positioning code
+    // as it is not tracked in this function.
+    internal static void WriteInternalUnsafeNoLine(string text) {
+
+        // Assume the caller will do the housekeeping necessary, i.e.
+        // stashing and restoring the buffer state,
+        // and restoring the cursor position.
+
+        lock (InternalContext.WriteLock) {
+            Console.Write(text);
+        }
+    }
+
+    internal static void ApplyFormatting(StringData strData) {
 
         // Applies the formatting assigned to a StringData.
         // Does not clear the formatting assigned afterwards.
         // The caller is responsible for restoring the console state afterwards.
-        
+
         // Step 1: Process color if available
         if (strData.ForegroundColor != null) {
             var color = strData.ForegroundColor.Value;
@@ -113,21 +119,20 @@ public class WindowsWriter : WriterBase {
             // Get the current console attributes, and set the console text attribute to add an underscore to the text.
             // TODO: Doesn't seem to be working...?
             Kernel32.GetConsoleScreenBufferInfo(stdoutHandle, out var consoleAttribs);
-            Kernel32.SetConsoleTextAttribute(stdoutHandle, consoleAttribs.wAttributes | Kernel32.CharacterAttributesFlags.COMMON_LVB_UNDERSCORE);
+            Kernel32.SetConsoleTextAttribute(stdoutHandle,
+                consoleAttribs.wAttributes | Kernel32.CharacterAttributesFlags.COMMON_LVB_UNDERSCORE);
         }
     }
 
-    private static void StashColors() {
+    internal static void StashColors() {
         // Store the current foreground and background color state
         __WriterInternalForegroundColor = Console.ForegroundColor;
         __WriterInternalBackgroundColor = Console.BackgroundColor;
     }
 
-    private static void RestoreColors() {
+    internal static void RestoreColors() {
         // Restore the foreground and background color state.
         Console.ForegroundColor = __WriterInternalForegroundColor;
         Console.BackgroundColor = __WriterInternalBackgroundColor;
     }
-
-    #endregion
 }
