@@ -93,7 +93,8 @@ public class FormattedStringBuilder {
 
             // No markup can be parsed from the text, treat it as a regular string.
             if (matches.Count == 0) {
-                return UnsanitizedAppend(newlineSplit);
+                UnsanitizedAppend(newlineSplit);
+                continue;
             }
 
             // Check if the string starts with the identifier character, \u001B (esc) in this case.
@@ -107,10 +108,13 @@ public class FormattedStringBuilder {
             Color? currentbgColor = null;
             FormattingType currentFormattingType = FormattingType.None;
 
+
+            int cnt = 0;
             // match.Groups[0] = The entire matched part
             // match.Groups[1] = The code identifier (for formatting or color type)
             // match.Groups[2] = The string after the identifier
             foreach (Match match in matches) {
+                cnt++;
                 var colorValue = match.Groups[2].Value;
 
                 // If the color value is longer than 1, i.e. it doesn't match [0m or [3m
@@ -159,7 +163,12 @@ public class FormattedStringBuilder {
                 if (match.Groups[3].Value.Length == 0)
                     continue;
 
-                strings.Add(new StringData(match.Groups[3].Value, true, currentbgColor, currentColor, currentFormattingType));
+                if (cnt == matches.Count - 1) {
+                    strings.Add(new StringData(match.Groups[3].Value, true, currentbgColor, currentColor, currentFormattingType));
+                }
+                else {
+                    strings.Add(new StringData(match.Groups[3].Value, false, currentbgColor, currentColor, currentFormattingType));
+                }
             }
         }
         return this;
@@ -217,7 +226,7 @@ public class FormattedStringBuilder {
         return this;
     }
     private FormattedStringBuilder UnsanitizedAppend(string text) {
-        strings.Add(new StringData(text, false,null,null, FormattingType.None));
+        strings.Add(new StringData(text, true,null,null, FormattingType.None));
         return this;
     }
 
