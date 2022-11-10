@@ -60,5 +60,9 @@ namespace ConsoleInteractive {
         public static void WriteLine(string value) {
             WriterImpl?.Write(value);
         }
+        
+        public static void WriteLine(StringData value) {
+            WriterImpl?.Write(value);
+        }
     }
 }
