@@ -18,7 +18,10 @@ public static class Convert {
 
             // No markup can be parsed from the text, treat it as a regular string.
             if (matches.Count == 0) {
-                output.Add(new StringData(newlineSplit));
+                
+                // Make sure to append a newline, because
+                // we're parsing by newline split, a.k.a. new lines
+                output.Add(new StringData(newlineSplit, true));
                 continue;
             }
 
@@ -34,8 +37,9 @@ public static class Convert {
             // match.Groups[0] = The entire matched part
             // match.Groups[1] = The identifier
             // match.Groups[2] = The string after the identifier
-            for (var i = 0; i < matches.Count; i++) {
-                var match = matches[i];
+            int cnt = 0;
+            foreach (Match match in matches) {
+                cnt++;
                 if (match.Groups[1].Value == "§r") {
                     currentColor = null;
                     currentFormattingType = FormattingType.None;
@@ -62,11 +66,18 @@ public static class Convert {
                 }
 
                 // Don't need to add the text if the identifier does not have text associated with it.
-                if (match.Groups[2].Length == 0)
+                if (match.Groups[2].Length == 0) {
+                    
+                    // If this is the last match, then make the previous text be a new line.
+                    if (cnt == matches.Count) {
+                        output[^1] = new StringData(output[^1].Text, true, output[^1].BackgroundColor, output[^1].ForegroundColor, output[^1].FormattingType);
+                    }
+
                     continue;
+                }
 
                 // If we're at the end of the string, append a newline.
-                if (i == matches.Count - 1) {
+                if (cnt == matches.Count) {
                     output.Add(new StringData(match.Groups[2].Value, true, null, currentColor, currentFormattingType));
                 }
                 else {
@@ -87,7 +98,7 @@ public static class Convert {
 
             // No markup can be parsed from the text, treat it as a regular string.
             if (matches.Count == 0) {
-                output.Add(new StringData(newlineSplit));
+                output.Add(new StringData(newlineSplit, true));
                 continue;
             }
 
@@ -103,10 +114,10 @@ public static class Convert {
             FormattingType currentFormattingType = FormattingType.None;
 
 
-            int cnt = 0;
             // match.Groups[0] = The entire matched part
             // match.Groups[1] = The code identifier (for formatting or color type)
             // match.Groups[2] = The string after the identifier
+            int cnt = 0;
             foreach (Match match in matches) {
                 cnt++;
                 var colorValue = match.Groups[2].Value;
@@ -134,6 +145,8 @@ public static class Convert {
                     switch (ToInt32(colorValue)) {
                         case 0:
                             currentFormattingType = FormattingType.None;
+                            currentColor = null;
+                            currentbgColor = null;
                             break;
                         case 1:
                             currentFormattingType |= FormattingType.Bold;
@@ -154,10 +167,17 @@ public static class Convert {
                 }
 
                 // Don't need to add the text if the identifier does not have text associated with it.
-                if (match.Groups[3].Value.Length == 0)
-                    continue;
+                if (match.Groups[3].Value.Length == 0) {
+                    
+                    // If this is the last match, then make the previous text be a new line.
+                    if (cnt == matches.Count) {
+                        output[^1] = new StringData(output[^1].Text, true, output[^1].BackgroundColor, output[^1].ForegroundColor, output[^1].FormattingType);
+                    }
 
-                if (cnt == matches.Count - 1) {
+                    continue;
+                }
+
+                if (cnt == matches.Count) {
                     output.Add(new StringData(match.Groups[3].Value, true, currentbgColor, currentColor, currentFormattingType));
                 }
                 else {

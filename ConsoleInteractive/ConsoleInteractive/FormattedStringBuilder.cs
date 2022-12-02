@@ -16,7 +16,7 @@ public class FormattedStringBuilder {
     /// Markup consists of § codes.
     /// </summary>
     public FormattedStringBuilder AppendMarkup(string text) {
-        strings = (List<StringData>)strings.Concat(Convert.FromMarkup(text));
+        strings = strings.Concat(Convert.FromMarkup(text)).ToList();
         return this;
     }
 
@@ -25,26 +25,7 @@ public class FormattedStringBuilder {
     /// Used for extensive formatting and coloring in the console.
     /// </summary>
     public FormattedStringBuilder AppendTerminalCode(string text) {
-        strings = (List<StringData>)strings.Concat(Convert.FromTerminalCode(text));
-        return this;
-    }
-    
-    /// <summary>
-    /// Appends both markup and terminal codes to the FormattedStringBuilder.
-    /// Used for sanitizing plain string inputs.
-    /// </summary>
-    public FormattedStringBuilder Append(string text) {
-        
-        // To allow for both Markup and Color Codes in the same string,
-        // make sure to AppendMarkup first (this processes the § markup into StringData),
-        // then flatten the entire string to turn everything into color codes.
-        // Then, expand everything back into a list of StringData.
-        AppendMarkup(text);
-        var flat = Flatten();
-        
-        // Discard the old list of StringData and replace it with the new one.
-        strings = new();
-        AppendTerminalCode(flat);
+        strings = strings.Concat(Convert.FromTerminalCode(text)).ToList();
         return this;
     }
 

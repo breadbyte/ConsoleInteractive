@@ -6,9 +6,7 @@ using ConsoleInteractive.Extensions;
 namespace ConsoleInteractive;
 
 public class StringData {
-
-    internal StringData() { }
-
+    
     public StringData(string text, bool appendNewLine = false, Color? backgroundColor = null,
         Color? foregroundColor = null, FormattingType formattingType = FormattingType.None) {
         this.Text = text;
@@ -19,7 +17,7 @@ public class StringData {
     }
 
     public string Text { get; }
-    public bool AppendNewLine { get; }
+    public bool AppendNewLine { get; internal set; }
     public Color? BackgroundColor { get; }
     public Color? ForegroundColor { get; }
     public FormattingType FormattingType { get; } = FormattingType.None;
@@ -39,12 +37,12 @@ public class StringData {
         // Step 2: Process color if available
         if (ForegroundColor != null) {
             var color = ForegroundColor.Value;
-            internalStringBuilder.Append(color.BuildAsForegroundColorVtCode());
+            internalStringBuilder.Append(color.AsForegroundColorVt());
         }
 
         if (BackgroundColor != null) {
             var color = BackgroundColor.Value;
-            internalStringBuilder.Append(color.BuildAsBackgroundColorVtCode());
+            internalStringBuilder.Append(color.AsBackgroundColorVt());
         }
 
         // Step 3: Build the string

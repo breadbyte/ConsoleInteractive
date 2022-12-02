@@ -31,11 +31,11 @@ public struct Color {
     public static Color Cyan		=> new Color(97,214,214);
     public static Color DarkGray	=> new Color(118,118,118);
 
-    public string BuildAsForegroundColorVtCode() {
+    public string AsForegroundColorVt() {
         return $"\u001B[38;2;{R};{G};{B}m";
     }
 
-    public string BuildAsBackgroundColorVtCode() {
+    public string AsBackgroundColorVt() {
         return $"\u001B[48;2;{R};{G};{B}m";
     }
 
