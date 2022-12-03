@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -20,7 +19,7 @@ namespace ConsoleInteractive {
                 Kernel32.SetConsoleMode(Kernel32.GetStdHandle(Kernel32.StdHandle.STD_OUTPUT_HANDLE), cModes | Kernel32.ConsoleBufferModes.ENABLE_VIRTUAL_TERMINAL_PROCESSING);
             }
         }
-    
+
         public static void WriteLine(string value) {
             InternalWriter.WriteLine(value);
         }
@@ -32,19 +31,55 @@ namespace ConsoleInteractive {
     }
 
     internal static class InternalWriter {
-        private readonly static Regex ColorCodeRegex = new(@"\u001B\[[\d;]+m", RegexOptions.Compiled);
+        private static int GetLineCntInTerminal(string value) {
+            bool escape = false;
+            int lineCnt = 0, curIndex = 0;
+            foreach (char c in value) {
+                if (!escape && c == '\u001B') {
+                    escape = true;
+                    continue;
+                } else if (escape && c == 'm') {
+                    escape = false;
+                    continue;
+                } else if (escape) {
+                    continue;
+                }
+
+                switch (System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c)) {
+                    case System.Globalization.UnicodeCategory.Control:
+                        if (c == '\n') {
+                            ++lineCnt;
+                            curIndex = 0;
+                        }
+                        break;
+                    case System.Globalization.UnicodeCategory.OtherLetter:
+                        if (curIndex + 2 > InternalContext.CursorLeftPosLimit) {
+                            ++lineCnt;
+                            curIndex = 2;
+                        } else {
+                            curIndex += 2;
+                        }
+                        break;
+                    default:
+                        curIndex += 1;
+                        break;
+                }
+
+                if (curIndex >= InternalContext.CursorLeftPosLimit) {
+                    ++lineCnt;
+                    curIndex = 0;
+                }
+            }
+            if (curIndex > 0)
+                ++lineCnt;
+            return lineCnt;
+        }
 
         private static void Write(string value) {
-            int linesAdded = 0;
-            foreach (string line in value.Split('\n')) {
-                int lineLen = line.Length;
-                foreach (Match colorCode in ColorCodeRegex.Matches(line))
-                    lineLen -= colorCode.Groups[0].Length;
-                linesAdded += (Math.Max(0, lineLen - 1) / InternalContext.CursorLeftPosLimit) + 1;
-            }
+            int linesAdded = GetLineCntInTerminal(value);
 
             lock (InternalContext.WriteLock) {
-                
+
                 // If the buffer is initialized, then we should get the current cursor position
                 // because we potentially are writing over user input.
                 //
@@ -54,19 +89,19 @@ namespace ConsoleInteractive {
                 if (InternalContext.BufferInitialized) {
                     currentCursorPos = InternalContext.CurrentCursorLeftPos;
                     ConsoleBuffer.ClearVisibleUserInput();
-                }
-                else
+                } else {
                     // Clears the entire line. Not optimal as it also clears blank spaces,
                     // but ensures that the entire line is cleared.
                     ConsoleBuffer.ClearCurrentLine();
-                
+                }
+
                 Console.WriteLine(value);
 
                 // Determine if we need to use the previous top position.
                 // i.e. vertically constrained.
                 if (InternalContext.CurrentCursorTopPos + linesAdded >= InternalContext.CursorTopPosLimit)
                     Interlocked.Exchange(ref InternalContext.CurrentCursorTopPos, InternalContext.CursorTopPosLimit - 1);
-                else 
+                else
                     Interlocked.Add(ref InternalContext.CurrentCursorTopPos, linesAdded);
 
                 // Only redraw if we have a buffer initialized.
@@ -79,6 +114,8 @@ namespace ConsoleInteractive {
 
                 Console.SetCursorPosition(currentCursorPos, InternalContext.CurrentCursorTopPos);
                 InternalContext.SetLeftCursorPosition(currentCursorPos);
+
+                ConsoleSuggestion.OnWriteLine(value, linesAdded);
             }
         }
 
@@ -101,7 +138,7 @@ namespace ConsoleInteractive {
             }
 
             bool funkyMode = false;
-            
+
             foreach (Match match in matches) {
                 if (match.Groups[1].Value == "§r") {
                     funkyMode = false;
@@ -110,16 +147,16 @@ namespace ConsoleInteractive {
                 if (match.Groups[1].Value == "§k") {
                     funkyMode = true;
                 }
-                
+
                 if (funkyMode) {
                     b.Append(match.Groups[1]);
-                    
+
                     var charArr = new char[match.Groups[2].Length];
                     Array.Fill(charArr, '\u2588'); // Square character in place of §k.
                     b.Append(new string(charArr));
                     continue;
                 }
-                
+
                 b.Append(match.Groups[1].Value + match.Groups[2].Value);
             }
 

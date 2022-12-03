@@ -63,42 +63,42 @@ namespace ConsoleInteractive {
      */
     internal static class ConsoleBuffer {
         internal static StringBuilder UserInputBuffer = new();
-        
+
         /// <summary>
         /// The prefix string.
         /// </summary>
-        private static string Prefix = ">";
+        private const string Prefix = ">";
 
         /// <summary>
         /// The prefix string, reversed.
         /// </summary>
-        private static string PrefixOpposite = "<";
-        
+        private const string PrefixOpposite = "<";
+
         /// <summary>
         /// The amount of spaces to add after the prefix.
         /// </summary>
-        private static int PrefixSpaces = 1;
-        
+        private const int PrefixSpaces = 1;
+
         /// <summary>
         /// The total length of the prefix, including the spaces.
         /// </summary>
-        private static volatile int PrefixTotalLength = Prefix.Length + PrefixSpaces;
-        
+        internal static volatile int PrefixTotalLength = Prefix.Length + PrefixSpaces;
+
         /// <summary>
         /// The current position in the UserInputBuffer
         /// </summary>
         internal static volatile int BufferPosition = 0;
-        
+
         /// <summary>
         /// The starting position of the output in the UserInputBuffer
         /// </summary>
-        private static volatile int BufferOutputAnchor = 0;
-        
+        internal static volatile int BufferOutputAnchor = 0;
+
         /// <summary>
         /// The length of the output to be shown to the user.
         /// </summary>
         private static volatile int BufferOutputLength = 0;
-        
+
         // Console width is actually 0 indexed, so we need to subtract 1 from the width.
         private static volatile int ConsoleMaxLength = InternalContext.CursorLeftPosLimit - 1;
         private static volatile int UserInputBufferMaxLength = ConsoleMaxLength - (Prefix.Length + PrefixSpaces);
@@ -120,15 +120,15 @@ namespace ConsoleInteractive {
             // Insert at the current buffer pos.
             UserInputBuffer.Insert(BufferPosition, c);
             Interlocked.Increment(ref BufferPosition);
-            
+
             // Check the output length and adjust the anchor and length.
             int outputLenValue = BufferOutputLength;
             int outputMaxLength = UserInputBufferMaxLength;
-            
+
             // If we haven't hit the end of the output buffer, we can just increment BufferOutputLength.
             if (outputLenValue < outputMaxLength) {
                 Interlocked.Increment(ref BufferOutputLength);
-                
+
                 // If the current buffer pos is less than the current buffer length,
                 // we need to redraw because we have input that needs to be displayed.
                 // abcdefghjiklmnopqrstuvwxyz
@@ -138,23 +138,79 @@ namespace ConsoleInteractive {
                 if (BufferPosition < UserInputBuffer.Length) {
                     RedrawInput();
                 }
-                
+
                 // Don't draw if the current input is suppressed.
                 else if (!InternalContext.SuppressInput)
                     Console.Write(c);
-                
+
             } else {
                 // We have hit the end of the output, so we need to move the output anchor forward.
                 Interlocked.Increment(ref BufferOutputAnchor);
                 RedrawInput();
                 return;
             }
-            
+
             // Increment the console cursor.
-            if (!InternalContext.SuppressInput)
-                InternalContext.IncrementLeftPos();
+            InternalContext.IncrementLeftPos();
         }
-        
+
+        /// <summary>
+        /// Replaces a substring in the user input buffer with a new string.
+        /// </summary>
+        /// <param name="start">The starting index of the substring.</param>
+        /// <param name="end">The ending index of the substring (not containing this character).</param>
+        /// <param name="newString">The string to replace it with.</param>
+        internal static void Replace(int start, int end, string newString) {
+            start = Math.Max(0, start);
+            end = Math.Min(UserInputBuffer.Length, end);
+            int lenDif = newString.Length - (end - start);
+            UserInputBuffer.Remove(start, end - start);
+            UserInputBuffer.Insert(start, newString);
+
+            int cursorPos, newEnd = start + newString.Length;
+            Interlocked.Exchange(ref BufferPosition, newEnd);
+            if (PrefixTotalLength + UserInputBuffer.Length < InternalContext.CursorLeftPosLimit) {
+                cursorPos = newEnd + PrefixTotalLength;
+                if (lenDif < 0) {
+                    int moveLeft = InternalContext.CurrentCursorLeftPos - cursorPos;
+                    InternalContext.DecrementLeftPos(moveLeft);
+                    RemoveTrailingLetters(-lenDif, moveLeft);
+                }
+                Interlocked.Exchange(ref BufferOutputAnchor, 0);
+                Interlocked.Exchange(ref BufferOutputLength, UserInputBuffer.Length);
+            } else {
+                if (lenDif < 0) {
+                    int newAnchor = Math.Max(0, BufferOutputAnchor + lenDif);
+                    cursorPos = newEnd - newAnchor + PrefixTotalLength;
+                    int moveLeft = InternalContext.CurrentCursorLeftPos - cursorPos;
+                    InternalContext.DecrementLeftPos(moveLeft);
+                    RemoveTrailingLetters(-lenDif, moveLeft);
+                    Interlocked.Exchange(ref BufferOutputAnchor, newAnchor);
+                } else if (lenDif > 0) {
+                    Interlocked.Exchange(ref BufferOutputAnchor, Math.Min(UserInputBuffer.Length - UserInputBufferMaxLength, BufferOutputAnchor + lenDif));
+                    cursorPos = newEnd - BufferOutputAnchor + PrefixTotalLength;
+                } else {
+                    cursorPos = newEnd - BufferOutputAnchor + PrefixTotalLength;
+                }
+                Interlocked.Exchange(ref BufferOutputLength, UserInputBufferMaxLength);
+            }
+
+            if (InternalContext.SuppressInput) return;
+
+            InternalContext.SetCursorVisible(false);
+            InternalContext.SetCursorPosition(0, InternalContext.CurrentCursorTopPos);
+
+            // Redraw the prefix.
+            DrawPrefix();
+
+            // Redraw the user input.
+            if (UserInputBuffer.Length != 0)
+                Console.Write($"{UserInputBuffer.ToString(BufferOutputAnchor, BufferOutputLength)}");
+
+            InternalContext.SetCursorPosition(cursorPos, InternalContext.CurrentCursorTopPos);
+            InternalContext.SetCursorVisible(true);
+        }
+
         internal static void SetBufferContent(string content) {
             FlushBuffer();
             UserInputBuffer.Append(content);
@@ -167,15 +223,15 @@ namespace ConsoleInteractive {
         /// </summary>
         internal static void RedrawInput() {
             lock (InternalContext.WriteLock) {
-                
+
                 if (InternalContext.SuppressInput) return;
-                
+
                 // Don't redraw if we don't have anything to redraw.
                 if (UserInputBuffer.Length == 0)
                     return;
 
                 InternalContext.SetCursorVisible(false);
-                
+
                 // We need to store the previous pos in a temp variable
                 // because DrawPrefix() will move the cursor.
                 var previousPos = InternalContext.CurrentCursorLeftPos;
@@ -187,12 +243,12 @@ namespace ConsoleInteractive {
                 DrawPrefix();
 
                 Console.Write($"{UserInputBuffer.ToString(BufferOutputAnchor, BufferOutputLength)}");
-                
+
                 InternalContext.SetCursorPosition(previousPos, InternalContext.CurrentCursorTopPos);
                 InternalContext.SetCursorVisible(true);
             }
         }
-        
+
         /// <summary>
         /// Draws the prefix.
         /// </summary>
@@ -203,112 +259,189 @@ namespace ConsoleInteractive {
 
                 // Determine if we need to use the opposite prefix.
                 var prefix = BufferOutputAnchor > 0 ? PrefixOpposite : Prefix;
-                
+
                 Console.Write(prefix + new string(' ', PrefixSpaces));
                 Interlocked.Exchange(ref InternalContext.CurrentCursorLeftPos, Prefix.Length + PrefixSpaces);
             }
         }
 
         /// <summary>
+        /// Get the length of the word before the current cursor, used for Ctrl+Backspace.
+        /// </summary>
+        private static int GetLengthOfPreviousWord() {
+            int counter = 0, index = BufferPosition - 1;
+
+            while (index >= 0 && char.IsWhiteSpace(UserInputBuffer[index])) {
+                --index;
+                ++counter;
+            }
+
+            if (index >= 0) {
+                if (char.IsLetterOrDigit(UserInputBuffer[index])) {
+                    while (index >= 0 && char.IsLetterOrDigit(UserInputBuffer[index])) {
+                        --index;
+                        ++counter;
+                    }
+                } else if (char.IsSymbol(UserInputBuffer[index]) || char.IsPunctuation(UserInputBuffer[index])) {
+                    while (index >= 0 && (char.IsSymbol(UserInputBuffer[index]) || char.IsPunctuation(UserInputBuffer[index]))) {
+                        --index;
+                        ++counter;
+                    }
+                }
+            }
+
+            return Math.Max(1, counter);
+        }
+
+        /// <summary>
+        /// Get the length of the word after the current cursor, used for Ctrl+delete.
+        /// </summary>
+        private static int GetLengthOfNextWord() {
+            int counter = 0, index = BufferPosition;
+
+            if (char.IsLetterOrDigit(UserInputBuffer[index])) {
+                while (index < UserInputBuffer.Length && char.IsLetterOrDigit(UserInputBuffer[index])) {
+                    ++index;
+                    ++counter;
+                }
+            } else if (char.IsSymbol(UserInputBuffer[index]) || char.IsPunctuation(UserInputBuffer[index])) {
+                while (index < UserInputBuffer.Length && (char.IsSymbol(UserInputBuffer[index]) || char.IsPunctuation(UserInputBuffer[index]))) {
+                    ++index;
+                    ++counter;
+                }
+            }
+
+            while (index < UserInputBuffer.Length && char.IsWhiteSpace(UserInputBuffer[index])) {
+                ++index;
+                ++counter;
+            }
+
+            return Math.Max(1, counter);
+        }
+
+        /// <summary>
         /// Moves the input buffer forward by one char. Equivalent to pressing the right arrow key.
         /// </summary>
-        internal static void MoveCursorForward() {
+        internal static void MoveCursorForward(bool inWords = false) {
             // If we're at the end of the buffer, do nothing.
             if (BufferPosition == UserInputBuffer.Length)
                 return;
-            
-            Interlocked.Increment(ref BufferPosition);
-            
-            // If we have extra buffer at the end
-            if (InternalContext.CurrentCursorLeftPos == ConsoleMaxLength && UserInputBuffer.Length > ConsoleMaxLength) {
-                Interlocked.Increment(ref BufferOutputAnchor);
-                RedrawInput();
+
+            int moveCnt = inWords ? GetLengthOfNextWord() : 1;
+
+            Interlocked.Add(ref BufferPosition, moveCnt);
+
+            int backLen = UserInputBuffer.Length - BufferOutputAnchor - BufferOutputLength;
+            if (backLen > 0) {
+                if (backLen > moveCnt) {
+                    Interlocked.Add(ref BufferOutputAnchor, moveCnt);
+                } else {
+                    Interlocked.Add(ref BufferOutputAnchor, backLen);
+                    InternalContext.IncrementLeftPos(moveCnt - backLen);
+                }
+            } else {
+                InternalContext.IncrementLeftPos(moveCnt);
             }
-            
-            if (InternalContext.SuppressInput) return;
-            InternalContext.IncrementLeftPos();
+            RedrawInput();
         }
 
         /// <summary>
         /// Moves the input buffer backward by one char. Equivalent to pressing the left arrow key.
         /// </summary>
-        internal static void MoveCursorBackward() {
+        internal static void MoveCursorBackward(bool inWords = false) {
             // If we're at the beginning of the buffer, do nothing.
             if (BufferPosition == 0)
                 return;
 
-            Interlocked.Decrement(ref BufferPosition);
+            int moveCnt = inWords ? GetLengthOfPreviousWord() : 1;
 
-            // If we have extra buffer at the start
-            if (InternalContext.CurrentCursorLeftPos == PrefixTotalLength && BufferOutputAnchor != 0) {
-                Interlocked.Decrement(ref BufferOutputAnchor);
+            Interlocked.Add(ref BufferPosition, -moveCnt);
 
-                if (BufferOutputLength != UserInputBuffer.Length && BufferOutputLength < UserInputBufferMaxLength)
-                    Interlocked.Increment(ref BufferOutputLength);
-                
-                RedrawInput();
+            if (BufferOutputAnchor > 0) {
+                if (BufferOutputAnchor >= moveCnt) {
+                    Interlocked.Add(ref BufferOutputAnchor, -moveCnt);
+                } else {
+                    InternalContext.DecrementLeftPos(moveCnt - BufferOutputAnchor);
+                    BufferOutputAnchor = 0;
+                }
+            } else {
+                InternalContext.DecrementLeftPos(moveCnt);
             }
-            
-            if (InternalContext.SuppressInput) return;
-            
-            if (InternalContext.CurrentCursorLeftPos > PrefixTotalLength)
-                InternalContext.DecrementLeftPos();
+            RedrawInput();
         }
 
         /// <summary>
         /// Removes a char from the buffer 'forwards', equivalent to pressing the Delete key.
         /// </summary>
-        internal static void RemoveForward() {
+        internal static void RemoveForward(bool inWords = false) {
             // If we're at the end of the buffer, do nothing.
             if (BufferPosition >= UserInputBuffer.Length || InternalContext.CurrentCursorLeftPos == UserInputBufferMaxLength)
                 return;
 
-            UserInputBuffer.Remove(BufferPosition, 1);
-            RedrawWithTrailingCheck();
+            int removeCnt = inWords ? GetLengthOfNextWord() : 1;
+
+            UserInputBuffer.Remove(BufferPosition, removeCnt);
+
+            RemoveTrailingLetters(0, 0);
+            int backLen = UserInputBuffer.Length - BufferOutputAnchor - BufferOutputLength;
+            if (backLen > 0) {
+                if (backLen < removeCnt)
+                    Interlocked.Add(ref BufferOutputLength, -(removeCnt - backLen));
+            } else {
+                Interlocked.Add(ref BufferOutputLength, -removeCnt);
+            }
+            RedrawInput();
         }
 
         /// <summary>
         /// Removes a char from the buffer 'backwards', equivalent to pressing the Backspace key.
         /// </summary>
-        internal static void RemoveBackward() {
+        internal static void RemoveBackward(bool inWords = false) {
             // If we're at the start of the buffer, do nothing.
             if (BufferPosition == 0 || InternalContext.CurrentCursorLeftPos == 0 && !InternalContext._suppressInput)
                 return;
 
-            // Remove 'backward', i.e. backspace
-            Interlocked.Decrement(ref BufferPosition);
-            UserInputBuffer.Remove(BufferPosition, 1);
-            
-            if (!InternalContext.SuppressInput)
-                InternalContext.DecrementLeftPos();
-            
-            if (BufferPosition == UserInputBuffer.Length) {
-                if (!InternalContext.SuppressInput) {
-                    Console.Write(' ');
-                    Console.Write('\b');
-                }
+            int removeCnt = inWords ? GetLengthOfPreviousWord() : 1;
 
-                Interlocked.Decrement(ref BufferOutputLength);
-            } else
-                RedrawWithTrailingCheck();
+            // Remove 'backward', i.e. backspace
+            Interlocked.Add(ref BufferPosition, -removeCnt);
+
+            UserInputBuffer.Remove(BufferPosition, removeCnt);
+
+            if (BufferOutputAnchor > 0) {
+                if (BufferOutputAnchor >= removeCnt) {
+                    Interlocked.Add(ref BufferOutputAnchor, -removeCnt);
+                } else {
+                    int moveLeft = removeCnt - BufferOutputAnchor;
+                    InternalContext.DecrementLeftPos(moveLeft);
+                    RemoveTrailingLetters(removeCnt, moveLeft);
+                    Interlocked.Add(ref BufferOutputLength, -moveLeft);
+                    BufferOutputAnchor = 0;
+                }
+                RedrawInput();
+            } else {
+                InternalContext.DecrementLeftPos(removeCnt);
+                RemoveTrailingLetters(removeCnt, removeCnt);
+                if (BufferPosition == UserInputBuffer.Length) {
+                    Interlocked.Add(ref BufferOutputLength, -removeCnt);
+                } else {
+                    int backLen = UserInputBuffer.Length - BufferOutputLength;
+                    if (backLen > 0) {
+                        if (backLen < removeCnt)
+                            Interlocked.Add(ref BufferOutputLength, -(removeCnt - backLen));
+                    } else {
+                        Interlocked.Add(ref BufferOutputLength, -removeCnt);
+                    }
+                    RedrawInput();
+                }
+            }
         }
 
-        private static void RedrawWithTrailingCheck() {
-            if (InternalContext.SuppressInput) return;            
-            
-            bool isBufferShorterThanWriteLimit = (UserInputBuffer.Length - BufferPosition) + InternalContext.CurrentCursorLeftPos < ConsoleMaxLength;
-            int cEndPos = GetConsoleEndPosition();
-            
-            // If the buffer isn't longer than the write limit
-            if (cEndPos < ConsoleMaxLength && isBufferShorterThanWriteLimit) {
-                Interlocked.Decrement(ref BufferOutputLength); // Shorten the length so we don't get an OutOfBoundsException.
-                RemoveTrailingLetter();
-                RedrawInput();
-            }
-            
-            // Redraw by default.
-            else
-                RedrawInput();
+        private static void RemoveTrailingLetters(int removeCharCnt, int moveLeftCnt) {
+            if (InternalContext.SuppressInput) return;
+            int charAfter = BufferOutputLength - ((BufferPosition + removeCharCnt) - BufferOutputAnchor);
+            Console.Write(new string(' ', moveLeftCnt + charAfter));
+            InternalContext.ResetCursorPosition();
         }
 
         // Magic math I came up with.
@@ -334,11 +467,11 @@ namespace ConsoleInteractive {
                 Console.SetCursorPosition(GetConsoleEndPosition(), InternalContext.CurrentCursorTopPos);
             } else
                 Console.SetCursorPosition(UserInputBuffer.Length + PrefixTotalLength, InternalContext.CurrentCursorTopPos);
-            
-            
+
+
             Console.Write(' ');
             Console.SetCursorPosition(InternalContext.CurrentCursorLeftPos, InternalContext.CurrentCursorTopPos);
-            
+
             InternalContext.SetCursorVisible(true);
         }
 
@@ -364,13 +497,13 @@ namespace ConsoleInteractive {
         private static void ClearBuffer() {
             // Set the buffer position to 0.
             Interlocked.Exchange(ref BufferPosition, 0);
-            
+
             // Set the buffer anchor to 0.
             Interlocked.Exchange(ref BufferOutputAnchor, 0);
-            
+
             // Set the buffer length to 0.
             Interlocked.Exchange(ref BufferOutputLength, 0);
-            
+
             UserInputBuffer.Clear();
         }
 
@@ -381,10 +514,10 @@ namespace ConsoleInteractive {
         internal static void ClearVisibleUserInput() {
             lock (InternalContext.WriteLock) {
                 Console.SetCursorPosition(0, InternalContext.CurrentCursorTopPos);
-                
+
                 bool requireCompleteClear = UserInputBuffer.Length > UserInputBufferMaxLength;
 
-                for (int i = 0; i <= (requireCompleteClear ? UserInputBufferMaxLength : UserInputBuffer.Length + PrefixTotalLength + 1); i++) {
+                for (int i = 0; i < ((requireCompleteClear ? UserInputBufferMaxLength : UserInputBuffer.Length) + PrefixTotalLength + 1); i++) {
                     Console.Write(' ');
                 }
 
@@ -418,20 +551,20 @@ namespace ConsoleInteractive {
 
         internal static void MoveToEndBufferPosition() {
             if (InternalContext.SuppressInput) return;
-            
+
             Interlocked.Exchange(ref BufferPosition, UserInputBuffer.Length);
-            
-            if (UserInputBuffer.Length < InternalContext.CursorLeftPosLimit) {
+
+            if (PrefixTotalLength + UserInputBuffer.Length < InternalContext.CursorLeftPosLimit) {
                 Interlocked.Exchange(ref BufferOutputAnchor, 0);
                 Interlocked.Exchange(ref BufferOutputLength, UserInputBuffer.Length);
-                
+
                 if (UserInputBuffer.Length == 0)
                     InternalContext.SetLeftCursorPosition(PrefixTotalLength);
-                else 
+                else
                     InternalContext.SetLeftCursorPosition(UserInputBuffer.Length + PrefixTotalLength);
                 return;
             }
-            
+
             InternalContext.SetLeftCursorPosition(UserInputBufferMaxLength + PrefixTotalLength);
             Interlocked.Exchange(ref BufferOutputAnchor, UserInputBuffer.Length - UserInputBufferMaxLength);
             Interlocked.Exchange(ref BufferOutputLength, UserInputBufferMaxLength);
@@ -444,17 +577,17 @@ namespace ConsoleInteractive {
         internal static List<string> BackreadBuffer = new(BackreadBufferLimit + 1);
         internal static string UserInputBufferCopy = string.Empty;
         internal static volatile bool isCurrentBufferCopied;
-        
+
         public static void IncrementBackreadPos() {
             if (BufferBackreadPos == BackreadBuffer.Count) return;
             Interlocked.Increment(ref BufferBackreadPos);
         }
-        
+
         private static void DecrementBackreadPos() {
             if (BufferBackreadPos == 0) return;
             Interlocked.Decrement(ref BufferBackreadPos);
         }
-        
+
         public static void ClearBackreadBuffer() {
             BackreadBuffer.Clear();
             Interlocked.Exchange(ref BufferBackreadPos, 0);
@@ -484,7 +617,7 @@ namespace ConsoleInteractive {
                 return BackreadBuffer[BufferBackreadPos];
             }
         }
-        
+
         /// <summary>
         /// Moves the backread forward. Equivalent to pressing the Down arrow.
         /// </summary>
@@ -502,7 +635,7 @@ namespace ConsoleInteractive {
                     return BackreadBuffer[BufferBackreadPos];
             }
         }
-        
+
         /// <summary>
         /// Adds a string to the backread buffer.
         /// </summary>

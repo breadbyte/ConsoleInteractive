@@ -12,7 +12,7 @@ namespace ConsoleInteractive {
         internal static volatile int CursorTopPosLimit = Console.BufferHeight;
         internal static volatile bool _suppressInput = false;
         internal static volatile bool BufferInitialized = false;
-        
+
         internal static bool SuppressInput {
             get { return _suppressInput; }
             set {
@@ -29,7 +29,7 @@ namespace ConsoleInteractive {
             if (CurrentCursorTopPos == CursorTopPosLimit) {
                 Interlocked.Exchange(ref CurrentCursorTopPos, CursorTopPosLimit - 1);
             }
-            
+
             Console.SetCursorPosition(leftPos, CurrentCursorTopPos);
             Interlocked.Exchange(ref CurrentCursorLeftPos, leftPos);
         }
@@ -38,7 +38,7 @@ namespace ConsoleInteractive {
             if (CurrentCursorTopPos == CursorTopPosLimit) {
                 Interlocked.Exchange(ref CurrentCursorTopPos, CursorTopPosLimit - 1);
             }
-            
+
             Console.SetCursorPosition(CurrentCursorLeftPos, topPos);
             Interlocked.Exchange(ref CurrentCursorTopPos, topPos);
         }
@@ -47,35 +47,42 @@ namespace ConsoleInteractive {
             SetLeftCursorPosition(leftPos);
             SetTopCursorPosition(topPos);
         }
-        
+
+        internal static void ResetCursorPosition() {
+            Console.SetCursorPosition(CurrentCursorLeftPos, CurrentCursorTopPos);
+        }
+
         internal static void SetCursorVisible(bool visible) {
-            
+
             // It's useful to have the cursor visible in debug situations
             #if DEBUG
                 return;
             #endif
-            
+
             Console.CursorVisible = visible;
         }
 
-        internal static void IncrementLeftPos() {
+        internal static void IncrementLeftPos(int amount = 1) {
             if (CursorLeftPosLimit <= CurrentCursorLeftPos + 1)
                 return;
-            CurrentCursorLeftPos = Interlocked.Increment(ref CurrentCursorLeftPos);
+            CurrentCursorLeftPos = Interlocked.Add(ref CurrentCursorLeftPos, amount);
+            if (SuppressInput) return;
             Console.SetCursorPosition(CurrentCursorLeftPos, CurrentCursorTopPos);
         }
-        
-        internal static void DecrementLeftPos() {
+
+        internal static void DecrementLeftPos(int amount = 1) {
             if (CurrentCursorLeftPos == 0)
                 return;
-            CurrentCursorLeftPos = Interlocked.Decrement(ref CurrentCursorLeftPos);
+            CurrentCursorLeftPos = Interlocked.Add(ref CurrentCursorLeftPos, -amount);
+            if (SuppressInput) return;
             Console.SetCursorPosition(CurrentCursorLeftPos, CurrentCursorTopPos);
         }
-        
+
         internal static void IncrementTopPos() {
             if (CursorTopPosLimit <= CurrentCursorTopPos + 1)
                 return;
             CurrentCursorTopPos = Interlocked.Increment(ref CurrentCursorTopPos);
+            if (SuppressInput) return;
             Console.SetCursorPosition(CurrentCursorLeftPos, CurrentCursorTopPos);
         }
     }
