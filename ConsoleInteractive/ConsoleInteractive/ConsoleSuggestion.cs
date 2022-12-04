@@ -321,7 +321,7 @@ namespace ConsoleInteractive {
             }
 
             private static BgMessageBuffer[] GetBgMessageBuffer(RecentMessageHandler.RecentMessage? msg, int start, int length) {
-                if (msg == null)
+                if (msg == null || msg.Message.Length == 0)
                     return new BgMessageBuffer[1] { new BgMessageBuffer(start, start + length, length) };
 
                 int charIndex = 0;
@@ -421,7 +421,6 @@ namespace ConsoleInteractive {
             }
 
             private static int GetLowerBoundColorCode(Tuple<int, string>[] ColorCodes, int charStart) {
-                --charStart;
                 int left = 0, right = ColorCodes.Length - 1;
                 while (left < right) {
                     int mid = (left + right) / 2;
@@ -440,7 +439,7 @@ namespace ConsoleInteractive {
 
                 internal static void AddMessage(string message) {
                     string[] lines = message.Split('\n');
-                    int startIdx = MaxSuggestions * (lines.Length / MaxSuggestions);
+                    int startIdx = Math.Max(0, lines.Length - MaxSuggestions);
                     for (int i = startIdx; i < lines.Length; i++) {
                         Index = Count < MaxSuggestions ? Count++ : (Index + 1) % MaxSuggestions;
                         Messages[Index] = new(lines[i]);

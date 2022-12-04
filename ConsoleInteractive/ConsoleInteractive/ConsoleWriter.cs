@@ -33,7 +33,7 @@ namespace ConsoleInteractive {
     internal static class InternalWriter {
         private static int GetLineCntInTerminal(string value) {
             bool escape = false;
-            int lineCnt = 0, curIndex = 0;
+            int lineCnt = 1, curIndex = 0;
             foreach (char c in value) {
                 if (!escape && c == '\u001B') {
                     escape = true;
@@ -70,8 +70,6 @@ namespace ConsoleInteractive {
                     curIndex = 0;
                 }
             }
-            if (curIndex > 0)
-                ++lineCnt;
             return lineCnt;
         }
 
