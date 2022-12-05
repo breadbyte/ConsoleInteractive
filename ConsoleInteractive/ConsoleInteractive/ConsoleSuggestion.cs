@@ -423,11 +423,11 @@ namespace ConsoleInteractive {
             private static int GetLowerBoundColorCode(Tuple<int, string>[] ColorCodes, int charStart) {
                 int left = 0, right = ColorCodes.Length - 1;
                 while (left < right) {
-                    int mid = (left + right) / 2;
-                    if (ColorCodes[mid].Item1 >= charStart)
-                        right = mid;
+                    int mid = (left + right + 1) / 2;
+                    if (ColorCodes[mid].Item1 <= charStart)
+                        left = mid;
                     else
-                        left = mid + 1;
+                        right = mid - 1;
                 }
                 return left;
             }
