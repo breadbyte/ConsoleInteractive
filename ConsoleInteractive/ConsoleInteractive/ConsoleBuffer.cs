@@ -339,10 +339,10 @@ namespace ConsoleInteractive {
                     Interlocked.Add(ref BufferOutputAnchor, backLen);
                     InternalContext.IncrementLeftPos(moveCnt - backLen);
                 }
+                RedrawInput();
             } else {
                 InternalContext.IncrementLeftPos(moveCnt);
             }
-            RedrawInput();
         }
 
         /// <summary>
@@ -364,10 +364,10 @@ namespace ConsoleInteractive {
                     InternalContext.DecrementLeftPos(moveCnt - BufferOutputAnchor);
                     BufferOutputAnchor = 0;
                 }
+                RedrawInput();
             } else {
                 InternalContext.DecrementLeftPos(moveCnt);
             }
-            RedrawInput();
         }
 
         /// <summary>

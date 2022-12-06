@@ -130,7 +130,7 @@ namespace ConsoleInteractive {
         }
 
         private static bool CheckIfNeedClear(Suggestion[] Suggestions, Tuple<int, int> range, int maxLength) {
-            if (Suggestions.Length < MaxSuggestionLength && ConsoleSuggestion.Suggestions.Length > MaxSuggestionLength)
+            if (Suggestions.Length < MaxSuggestionLength && ConsoleSuggestion.Suggestions.Length >= MaxSuggestionLength)
                 return true;
             if (ConsoleSuggestion.Suggestions.Length < MaxSuggestionLength && ConsoleSuggestion.Suggestions.Length > Suggestions.Length)
                 return true;
