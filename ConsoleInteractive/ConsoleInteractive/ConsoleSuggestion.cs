@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 
 namespace ConsoleInteractive {
     public static class ConsoleSuggestion {
-        private const int MaxSuggestions = 6, MaxSuggestionLength = 18;
+        public const int MaxSuggestions = 6, MaxSuggestionLength = 23;
 
         private static bool InUse = false;
 
@@ -60,6 +60,8 @@ namespace ConsoleInteractive {
                     LastTextRange = new(TargetTextRange.Item1, ConsoleBuffer.BufferPosition);
                     alreadyTriggerTab = true;
                     lastKeyIsTab = true;
+                    if (Suggestions[ChoosenIndex].Text == "/")
+                        ConsoleReader.CheckInputBufferUpdate();
                     DrawHelper.RedrawOnTab();
                     return true;
                 } else {
@@ -124,6 +126,19 @@ namespace ConsoleInteractive {
             ClearSuggestions();
         }
 
+        private static bool CheckIfNeedClear(Suggestion[] Suggestions, Tuple<int, int> range, int maxLength)
+        {
+            if (Suggestions.Length < MaxSuggestionLength && ConsoleSuggestion.Suggestions.Length > MaxSuggestionLength)
+                return true;
+            if (ConsoleSuggestion.Suggestions.Length < MaxSuggestionLength && ConsoleSuggestion.Suggestions.Length > Suggestions.Length)
+                return true;
+            if (StartIndex < (range.Item1 - 1))
+                return true;
+            if (StartIndex + PopupWidth > (range.Item1 - 1 + maxLength + 2))
+                return true;
+            return false;
+        }
+
         public static void UpdateSuggestions(Suggestion[] Suggestions, Tuple<int, int> range) {
             int maxLength = 0;
             foreach (Suggestion sug in Suggestions)
@@ -135,7 +150,7 @@ namespace ConsoleInteractive {
             }
 
             lock (InternalContext.WriteLock) {
-                if (InUse)
+                if (InUse && CheckIfNeedClear(Suggestions, range, maxLength))
                     DrawHelper.ClearSuggestionPopup();
 
                 ConsoleSuggestion.Suggestions = Suggestions;
@@ -172,12 +187,10 @@ namespace ConsoleInteractive {
         }
 
         public class Suggestion {
-            public string ShortText;
-            public string Text, Type;
+            public string Text, ShortText;
 
-            public Suggestion(string text, string type) {
+            public Suggestion(string text) {
                 Text = text;
-                Type = type;
                 if (Text.Length <= MaxSuggestionLength) {
                     ShortText = Text;
                 } else {

@@ -28,7 +28,7 @@ namespace ConsoleInteractive {
             ConsoleBuffer.FlushBuffer();
         }
 
-        private static void CheckInputBufferUpdate() {
+        internal static void CheckInputBufferUpdate() {
             ConsoleSuggestion.OnInputUpdate();
             Buffer InputBuffer = GetBufferContent();
             if (InputBuffer != LastInputBuffer) {
