@@ -20,9 +20,12 @@ namespace ConsoleInteractive {
         private static Suggestion[] Suggestions = Array.Empty<Suggestion>();
 
 
-        internal static void OnWriteLine(string message, int linesAdded) {
+        internal static void BeforeWriteLine(string message, int linesAdded) {
             if (InUse) DrawHelper.ClearSuggestionPopup(linesAdded);
             DrawHelper.AddMessage(message);
+        }
+
+        internal static void AfterWriteLine() {
             if (InUse) DrawHelper.DrawSuggestionPopup();
         }
 
@@ -126,8 +129,7 @@ namespace ConsoleInteractive {
             ClearSuggestions();
         }
 
-        private static bool CheckIfNeedClear(Suggestion[] Suggestions, Tuple<int, int> range, int maxLength)
-        {
+        private static bool CheckIfNeedClear(Suggestion[] Suggestions, Tuple<int, int> range, int maxLength) {
             if (Suggestions.Length < MaxSuggestionLength && ConsoleSuggestion.Suggestions.Length > MaxSuggestionLength)
                 return true;
             if (ConsoleSuggestion.Suggestions.Length < MaxSuggestionLength && ConsoleSuggestion.Suggestions.Length > Suggestions.Length)
@@ -217,9 +219,9 @@ namespace ConsoleInteractive {
             internal static void DrawSuggestionPopup(bool refreshMsgBuf = true) {
                 BgMessageBuffer[] messageBuffers = Array.Empty<BgMessageBuffer>();
                 int curBufIdx = -1, nextMessageIdx = 0;
-                LastDrawStartPos = GetDrawStartPos();
                 InternalContext.SetCursorVisible(false);
                 int top = InternalContext.CurrentCursorTopPos, left = InternalContext.CurrentCursorLeftPos;
+                LastDrawStartPos = GetDrawStartPos();
                 for (int i = ViewBottom - 1; i >= ViewTop; --i) {
                     if (refreshMsgBuf) {
                         if (curBufIdx < 0) {
@@ -244,7 +246,7 @@ namespace ConsoleInteractive {
                 Console.Write(ResetColorCode);
                 for (int i = 0; i < DisplaySuggestionsCnt; ++i) {
                     if (linesAdded > 0 && i >= linesAdded && drawStartPos == LastDrawStartPos) break;
-                    ClearSingleSuggestionPopup(BgBuffer[i], cursorTop: top - (DisplaySuggestionsCnt - i) - linesAdded);
+                    ClearSingleSuggestionPopup(BgBuffer[i], cursorTop: top - (DisplaySuggestionsCnt - i));
                 }
                 Console.SetCursorPosition(left, top);
                 InternalContext.SetCursorVisible(true);
@@ -278,6 +280,7 @@ namespace ConsoleInteractive {
             }
 
             private static void DrawSingleSuggestionPopup(int index, BgMessageBuffer buf, int cursorTop) {
+                if (cursorTop < 0) return;
                 Console.SetCursorPosition(buf.CursorStart, cursorTop);
 
                 Console.Write(ResetColorCode);
@@ -327,6 +330,7 @@ namespace ConsoleInteractive {
             }
 
             private static void ClearSingleSuggestionPopup(BgMessageBuffer buf, int cursorTop) {
+                if (cursorTop < 0) return;
                 Console.SetCursorPosition(buf.CursorStart, cursorTop);
                 Console.Write(buf.Text);
                 Console.Write(ResetColorCode);

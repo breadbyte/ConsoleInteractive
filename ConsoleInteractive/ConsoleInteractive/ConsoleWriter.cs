@@ -77,6 +77,7 @@ namespace ConsoleInteractive {
             int linesAdded = GetLineCntInTerminal(value);
 
             lock (InternalContext.WriteLock) {
+                ConsoleSuggestion.BeforeWriteLine(value, linesAdded);
 
                 // If the buffer is initialized, then we should get the current cursor position
                 // because we potentially are writing over user input.
@@ -113,7 +114,7 @@ namespace ConsoleInteractive {
                 Console.SetCursorPosition(currentCursorPos, InternalContext.CurrentCursorTopPos);
                 InternalContext.SetLeftCursorPosition(currentCursorPos);
 
-                ConsoleSuggestion.OnWriteLine(value, linesAdded);
+                ConsoleSuggestion.AfterWriteLine();
             }
         }
 
