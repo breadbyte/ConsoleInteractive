@@ -109,7 +109,7 @@ namespace ConsoleInteractive {
 
                 while (Console.KeyAvailable == false) {
                     if (token.IsCancellationRequested) return;
-                    Thread.Sleep(8);
+                    Thread.Sleep(16);
                     continue;
                 }
 

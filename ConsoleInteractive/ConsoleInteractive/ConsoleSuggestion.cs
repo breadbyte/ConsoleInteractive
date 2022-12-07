@@ -259,6 +259,8 @@ namespace ConsoleInteractive {
 
             public int TooltipWidth;
 
+            private Tuple<int, string>? _cache = null;
+
             public Suggestion(string text, string? tooltip = null) {
                 Text = text;
                 if (Text.Length <= MaxSuggestionLength) {
@@ -282,20 +284,23 @@ namespace ConsoleInteractive {
                 widthLimit -= 2;
                 if (widthLimit <= 0) return string.Empty;
 
-                for (int i = Tooltip.Length - 1; i > 0 && widthLimit > 0; --i) {
+                if (_cache != null && _cache.Item1 == widthLimit)
+                    return _cache.Item2;
+
+                for (int i = Tooltip.Length - 1, limit = widthLimit; i > 0 && limit > 0; --i) {
                     char c = Tooltip[i];
                     if (System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) == System.Globalization.UnicodeCategory.OtherLetter) {
-                        widthLimit -= 2;
-                        if (widthLimit < 0)
-                            return "..." + Tooltip[(i + 1)..];
+                        limit -= 2;
+                        if (limit < 0)
+                            return (_cache = new(widthLimit, "..." + Tooltip[(i + 1)..])).Item2;
                     } else {
-                        widthLimit -= 1;
+                        limit -= 1;
                     }
-                    if (widthLimit == 0)
-                        return ".." + Tooltip[i..];
+                    if (limit == 0)
+                        return (_cache = new(widthLimit, ".." + Tooltip[i..])).Item2;
                 }
 
-                return "..";
+                return (_cache = new(widthLimit, "..")).Item2;
             }
         }
 
@@ -343,7 +348,6 @@ namespace ConsoleInteractive {
                 int drawStartPos = GetDrawStartPos();
                 InternalContext.SetCursorVisible(false);
                 int top = InternalContext.CurrentCursorTopPos, left = InternalContext.CurrentCursorLeftPos;
-                Console.Write(ResetColorCode);
                 for (int i = 0; i < DisplaySuggestionsCnt; ++i) {
                     if (linesAdded > 0 && i >= linesAdded && drawStartPos == LastDrawStartPos) break;
                     ClearSingleSuggestionPopup(BgBuffer[i], cursorTop: top - (DisplaySuggestionsCnt - i));
@@ -381,82 +385,91 @@ namespace ConsoleInteractive {
 
             private static void DrawSingleSuggestionPopup(int index, BgMessageBuffer buf, int cursorTop) {
                 if (cursorTop < 0) return;
-                Console.SetCursorPosition(buf.CursorStart, cursorTop);
 
-                Console.Write(ResetColorCode);
+                StringBuilder sb = new(PopupWidth + 4 * NormalColorCode.Length);
+
+                sb.Append(ResetColorCode);
                 if (buf.StartSpace)
-                    Console.Write(' ');
+                    sb.Append(' ');
 
-                Console.Write(NormalBgColorCode);
+                sb.Append(NormalBgColorCode);
 
-                Console.Write(ArrowColorCode);
+                sb.Append(ArrowColorCode);
                 if (index == ViewTop && ViewTop != 0)
-                    Console.Write('↑');
+                    sb.Append('↑');
                 else if (index + 1 == ViewBottom && ViewBottom != Suggestions.Length)
-                    Console.Write('↓');
+                    sb.Append('↓');
                 else if (index == ChoosenIndex)
-                    Console.Write('>');
+                    sb.Append('>');
                 else
-                    Console.Write(' ');
+                    sb.Append(' ');
 
                 if (index == ChoosenIndex) {
                     if (HighlightColorCode != ArrowColorCode)
-                        Console.Write(HighlightColorCode);
+                        sb.Append(HighlightColorCode);
                     if (HighlightBgColorCode != NormalBgColorCode)
-                        Console.Write(HighlightBgColorCode);
+                        sb.Append(HighlightBgColorCode);
                 } else {
-                    Console.Write(NormalColorCode);
+                    sb.Append(NormalColorCode);
                 }
 
-                Console.Write(Suggestions[index].ShortText);
+                sb.Append(Suggestions[index].ShortText);
 
                 int lastSpace = PopupWidth - 2 - Suggestions[index].ShortText.Length;
                 if (Suggestions[index].TooltipWidth > 0 && lastSpace > 1) {
                     --lastSpace;
-                    Console.Write(' ');
+                    sb.Append(' ');
 
                     if (index == ChoosenIndex) {
                         if (HighlightColorCode != HighlightTooltipColorCode)
-                            Console.Write(HighlightTooltipColorCode);
+                            sb.Append(HighlightTooltipColorCode);
                     } else {
                         if (NormalColorCode != TooltipColorCode)
-                            Console.Write(TooltipColorCode);
+                            sb.Append(TooltipColorCode);
                     }
 
                     if (lastSpace >= Suggestions[index].TooltipWidth) {
-                        Console.Write(new string(' ', lastSpace - Suggestions[index].TooltipWidth));
-                        Console.Write(Suggestions[index].Tooltip);
+                        sb.Append(' ', lastSpace - Suggestions[index].TooltipWidth);
+                        sb.Append(Suggestions[index].Tooltip);
                     } else {
-                        Console.Write(Suggestions[index].GetShortTooltip(lastSpace));
+                        sb.Append(Suggestions[index].GetShortTooltip(lastSpace));
                     }
                 } else if (lastSpace > 0) {
-                    Console.Write(new string(' ', lastSpace));
+                    sb.Append(new string(' ', lastSpace));
                 }
 
                 if (index == ChoosenIndex && HighlightBgColorCode != NormalBgColorCode)
-                    Console.Write(NormalBgColorCode);
+                    sb.Append(NormalBgColorCode);
 
-                Console.Write(ArrowColorCode);
+                sb.Append(ArrowColorCode);
                 if (index == ViewTop && ViewTop != 0)
-                    Console.Write('↑');
+                    sb.Append('↑');
                 else if (index + 1 == ViewBottom && ViewBottom != Suggestions.Length)
-                    Console.Write('↓');
+                    sb.Append('↓');
                 else if (index == ChoosenIndex)
-                    Console.Write('<');
+                    sb.Append('<');
                 else
-                    Console.Write(' ');
+                    sb.Append(' ');
 
-                Console.Write(ResetColorCode);
+                sb.Append(ResetColorCode);
                 if (buf.EndSpace)
-                    Console.Write(' ');
+                    sb.Append(' ');
+
+                Console.SetCursorPosition(buf.CursorStart, cursorTop);
+                Console.Write(sb.ToString());
             }
 
             private static void ClearSingleSuggestionPopup(BgMessageBuffer buf, int cursorTop) {
                 if (cursorTop < 0) return;
+
+                StringBuilder sb = new(PopupWidth + ResetColorCode.Length);
+
+                sb.Append(buf.Text);
+                sb.Append(ResetColorCode);
+                sb.Append(' ', buf.AfterTextSpace);
+
                 Console.SetCursorPosition(buf.CursorStart, cursorTop);
-                Console.Write(buf.Text);
-                Console.Write(ResetColorCode);
-                Console.Write(new string(' ', buf.AfterTextSpace));
+                Console.Write(sb.ToString());
             }
 
             private static BgMessageBuffer[] GetBgMessageBuffer(RecentMessageHandler.RecentMessage? msg, int start, int length) {
