@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -269,13 +270,32 @@ namespace ConsoleInteractive {
 
                 Tooltip = tooltip ?? string.Empty;
                 TooltipWidth = 0;
-                foreach (char c in Tooltip)
-                {
+                foreach (char c in Tooltip) {
                     if (System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) == System.Globalization.UnicodeCategory.OtherLetter)
                         TooltipWidth += 2;
                     else
                         TooltipWidth += 1;
                 }
+            }
+
+            internal string GetShortTooltip(int widthLimit) {
+                widthLimit -= 2;
+                if (widthLimit <= 0) return string.Empty;
+
+                for (int i = Tooltip.Length - 1; i > 0 && widthLimit > 0; --i) {
+                    char c = Tooltip[i];
+                    if (System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) == System.Globalization.UnicodeCategory.OtherLetter) {
+                        widthLimit -= 2;
+                        if (widthLimit < 0)
+                            return "..." + Tooltip[(i + 1)..];
+                    } else {
+                        widthLimit -= 1;
+                    }
+                    if (widthLimit == 0)
+                        return ".." + Tooltip[i..];
+                }
+
+                return "..";
             }
         }
 
@@ -391,7 +411,10 @@ namespace ConsoleInteractive {
                 Console.Write(Suggestions[index].ShortText);
 
                 int lastSpace = PopupWidth - 2 - Suggestions[index].ShortText.Length;
-                if (Suggestions[index].TooltipWidth > 0 && lastSpace >= (1 + Suggestions[index].TooltipWidth)) {
+                if (Suggestions[index].TooltipWidth > 0 && lastSpace > 1) {
+                    --lastSpace;
+                    Console.Write(' ');
+
                     if (index == ChoosenIndex) {
                         if (HighlightColorCode != HighlightTooltipColorCode)
                             Console.Write(HighlightTooltipColorCode);
@@ -399,8 +422,13 @@ namespace ConsoleInteractive {
                         if (NormalColorCode != TooltipColorCode)
                             Console.Write(TooltipColorCode);
                     }
-                    Console.Write(new string(' ', lastSpace - Suggestions[index].TooltipWidth));
-                    Console.Write(Suggestions[index].Tooltip);
+
+                    if (lastSpace >= Suggestions[index].TooltipWidth) {
+                        Console.Write(new string(' ', lastSpace - Suggestions[index].TooltipWidth));
+                        Console.Write(Suggestions[index].Tooltip);
+                    } else {
+                        Console.Write(Suggestions[index].GetShortTooltip(lastSpace));
+                    }
                 } else if (lastSpace > 0) {
                     Console.Write(new string(' ', lastSpace));
                 }
