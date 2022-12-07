@@ -55,9 +55,9 @@ namespace ConsoleInteractive {
         internal static void SetCursorVisible(bool visible) {
 
             // It's useful to have the cursor visible in debug situations
-            #if DEBUG
-                return;
-            #endif
+#if DEBUG
+            return;
+#endif
 
             Console.CursorVisible = visible;
         }

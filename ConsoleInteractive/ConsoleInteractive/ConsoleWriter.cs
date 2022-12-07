@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using PInvoke;
+using Wcwidth;
 
 namespace ConsoleInteractive {
     public static class ConsoleWriter {
@@ -33,7 +34,7 @@ namespace ConsoleInteractive {
     internal static class InternalWriter {
         private static int GetLineCntInTerminal(string value) {
             bool escape = false;
-            int lineCnt = 1, curIndex = 0;
+            int lineCnt = 1, cursorPos = 0;
             foreach (char c in value) {
                 if (!escape && c == '\u001B') {
                     escape = true;
@@ -45,29 +46,22 @@ namespace ConsoleInteractive {
                     continue;
                 }
 
-                switch (System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c)) {
-                    case System.Globalization.UnicodeCategory.Control:
-                        if (c == '\n') {
-                            ++lineCnt;
-                            curIndex = 0;
-                        }
-                        break;
-                    case System.Globalization.UnicodeCategory.OtherLetter:
-                        if (curIndex + 2 > InternalContext.CursorLeftPosLimit) {
-                            ++lineCnt;
-                            curIndex = 2;
-                        } else {
-                            curIndex += 2;
-                        }
-                        break;
-                    default:
-                        curIndex += 1;
-                        break;
+                if (c == '\n') {
+                    ++lineCnt;
+                    cursorPos = 0;
                 }
 
-                if (curIndex >= InternalContext.CursorLeftPosLimit) {
+                int width = Math.Max(0, UnicodeCalculator.GetWidth(c));
+                if (cursorPos + width > InternalContext.CursorLeftPosLimit) {
                     ++lineCnt;
-                    curIndex = 0;
+                    cursorPos = width;
+                } else {
+                    cursorPos += width;
+                }
+
+                if (cursorPos >= InternalContext.CursorLeftPosLimit) {
+                    ++lineCnt;
+                    cursorPos = 0;
                 }
             }
             return lineCnt;

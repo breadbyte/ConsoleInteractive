@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using Wcwidth;
 
 namespace ConsoleInteractive {
     public static class ConsoleSuggestion {
@@ -148,8 +148,8 @@ namespace ConsoleInteractive {
         public static void UpdateSuggestions(Suggestion[] Suggestions, Tuple<int, int> range) {
             int maxLength = 0;
             foreach (Suggestion sug in Suggestions)
-                maxLength = Math.Max(maxLength, 
-                    Math.Min(MaxSuggestionLength, sug.ShortText.Length + 
+                maxLength = Math.Max(maxLength,
+                    Math.Min(MaxSuggestionLength, sug.ShortText.Length +
                         (sug.TooltipWidth == 0 ? 0 : (sug.TooltipWidth + 1))));
 
             if (Suggestions.Length == 0 || maxLength == 0) {
@@ -193,25 +193,25 @@ namespace ConsoleInteractive {
                 }
             }
         }
-        
-        private static string? StringToColorCode(string? input, bool background)
-        {
+
+        private static string? StringToColorCode(string? input, bool background) {
             if (string.IsNullOrWhiteSpace(input))
                 return null;
-            if ((input.Length <= 7 && input[0] == '#') || input.Length <= 6)
+            if (input.Length < 6 || input.Length > 7)
                 return null;
-            try
-            {
-                int rgb = Convert.ToInt32(input, 16);
+            if (input.Length == 6 && input[0] == '#')
+                return null;
+            if (input.Length == 7 && input[0] != '#')
+                return null;
+            try {
+                int rgb = Convert.ToInt32(input.Length == 7 ? input[1..] : input, 16);
 
                 int r = (rgb & 0xff0000) >> 16;
                 int g = (rgb & 0xff00) >> 8;
                 int b = (rgb & 0xff);
 
                 return string.Format("\u001b[{0};2;{1};{2};{3}m", background ? 48 : 38, r, g, b);
-            }
-            catch
-            {
+            } catch {
                 return null;
             }
         }
@@ -222,8 +222,7 @@ namespace ConsoleInteractive {
                                      string? HighlightBg = null,
                                      string? Tooltip = null,
                                      string? TooltipHighlight = null,
-                                     string? Arrow = null)
-        {
+                                     string? Arrow = null) {
             Normal = StringToColorCode(Normal, false);
             if (!string.IsNullOrEmpty(Normal))
                 DrawHelper.NormalColorCode = Normal;
@@ -272,12 +271,8 @@ namespace ConsoleInteractive {
 
                 Tooltip = tooltip ?? string.Empty;
                 TooltipWidth = 0;
-                foreach (char c in Tooltip) {
-                    if (System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) == System.Globalization.UnicodeCategory.OtherLetter)
-                        TooltipWidth += 2;
-                    else
-                        TooltipWidth += 1;
-                }
+                foreach (char c in Tooltip)
+                    TooltipWidth += Math.Max(0, UnicodeCalculator.GetWidth(c));
             }
 
             internal string GetShortTooltip(int widthLimit) {
@@ -289,13 +284,10 @@ namespace ConsoleInteractive {
 
                 for (int i = Tooltip.Length - 1, limit = widthLimit; i > 0 && limit > 0; --i) {
                     char c = Tooltip[i];
-                    if (System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) == System.Globalization.UnicodeCategory.OtherLetter) {
-                        limit -= 2;
-                        if (limit < 0)
-                            return (_cache = new(widthLimit, "..." + Tooltip[(i + 1)..])).Item2;
-                    } else {
-                        limit -= 1;
-                    }
+                    int width = Math.Max(0, UnicodeCalculator.GetWidth(c));
+                    if (limit - width < 0)
+                        return (_cache = new(widthLimit, new string('.', 2 + limit) + Tooltip[(i + 1)..])).Item2;
+                    limit -= width;
                     if (limit == 0)
                         return (_cache = new(widthLimit, ".." + Tooltip[i..])).Item2;
                 }
@@ -481,54 +473,48 @@ namespace ConsoleInteractive {
                 List<BgMessageBuffer> buffers = new();
 
                 while (charIndex < chars.Length) {
-                    int curIndex = 0;
+                    int cursorPos = 0;
                     int charStart, charEnd;
 
                     string Text = string.Empty;
                     bool StartSpace = false, EndSpace = false;
                     int CursorStart, CutsorEnd, AfterTextSpace = 0;
 
-                    while (curIndex < start) {
+                    while (cursorPos < start) {
                         if (charIndex < chars.Length) {
-                            if (System.Globalization.CharUnicodeInfo.GetUnicodeCategory(chars[charIndex]) == System.Globalization.UnicodeCategory.OtherLetter) {
-                                if (curIndex + 2 > start) {
-                                    StartSpace = true;
-                                    break;
-                                }
-                                curIndex += 2;
-                            } else {
-                                curIndex += 1;
+                            int width = Math.Max(0, UnicodeCalculator.GetWidth(chars[charIndex]));
+                            if (cursorPos + width > start) {
+                                StartSpace = true;
+                                break;
                             }
+                            cursorPos += width;
                             ++charIndex;
                         } else {
-                            curIndex = start;
+                            cursorPos = start;
                             break;
                         }
                     }
                     charStart = charIndex;
-                    CursorStart = curIndex;
+                    CursorStart = cursorPos;
 
                     int end = start + length;
-                    while (curIndex < end) {
+                    while (cursorPos < end) {
                         if (charIndex < chars.Length) {
-                            if (System.Globalization.CharUnicodeInfo.GetUnicodeCategory(chars[charIndex]) == System.Globalization.UnicodeCategory.OtherLetter)
-                                curIndex += 2;
-                            else
-                                curIndex += 1;
+                            cursorPos += Math.Max(0, UnicodeCalculator.GetWidth(chars[charIndex]));
 
-                            if (curIndex > end)
+                            if (cursorPos > end)
                                 EndSpace = true;
 
                             ++charIndex;
                         } else {
-                            int last = end - curIndex;
-                            curIndex += last;
+                            int last = end - cursorPos;
+                            cursorPos += last;
                             AfterTextSpace += last;
                             break;
                         }
                     }
                     charEnd = charIndex;
-                    CutsorEnd = curIndex;
+                    CutsorEnd = cursorPos;
 
                     if (charStart < charEnd) {
                         StringBuilder sb = new();
@@ -553,15 +539,12 @@ namespace ConsoleInteractive {
 
                     buffers.Add(new BgMessageBuffer(CursorStart, CutsorEnd, AfterTextSpace, Text, StartSpace, EndSpace));
 
-                    while (curIndex < InternalContext.CursorLeftPosLimit) {
+                    while (cursorPos < InternalContext.CursorLeftPosLimit) {
                         if (charIndex < chars.Length) {
-                            if (System.Globalization.CharUnicodeInfo.GetUnicodeCategory(chars[charIndex]) == System.Globalization.UnicodeCategory.OtherLetter) {
-                                if (curIndex + 2 >= InternalContext.CursorLeftPosLimit)
-                                    break;
-                                curIndex += 2;
-                            } else {
-                                curIndex += 1;
-                            }
+                            int width = Math.Max(0, UnicodeCalculator.GetWidth(chars[charIndex]));
+                            if (cursorPos + width >= InternalContext.CursorLeftPosLimit)
+                                break;
+                            cursorPos += width;
                             ++charIndex;
                         } else {
                             break;
