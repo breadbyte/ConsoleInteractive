@@ -40,6 +40,9 @@ namespace ConsoleInteractive {
         /// Gets the number of lines and the width of the first line of the message.
         /// </summary>
         private static Tuple<int, int> GetLineCountInTerminal(string value) {
+            if (Console.IsOutputRedirected)
+                return new(0, 0);
+
             bool escape = false;
             int lineCnt = 0, cursorPos = 0, firstLineLength = -1;
             int bufWidth = Console.BufferWidth;

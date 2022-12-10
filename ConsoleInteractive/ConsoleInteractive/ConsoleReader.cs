@@ -103,9 +103,6 @@ namespace ConsoleInteractive {
             ConsoleBuffer.Init();
 
             while (!token.IsCancellationRequested) {
-                if (token.IsCancellationRequested) return;
-
-
                 if (Console.IsInputRedirected) {
                     while (Console.In.Peek() == -1) {
                         if (token.IsCancellationRequested) return;
@@ -262,7 +259,6 @@ namespace ConsoleInteractive {
                         CheckInputBufferUpdate();
                     }
                 }
-
             }
             InternalContext.BufferInitialized = false;
         }

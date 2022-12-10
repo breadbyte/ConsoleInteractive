@@ -150,8 +150,10 @@ namespace ConsoleInteractive {
         }
 
         public static void UpdateSuggestions(Suggestion[] Suggestions, Tuple<int, int> range) {
-            if (Console.IsOutputRedirected)
+            if (Console.IsOutputRedirected) {
+                ClearSuggestions();
                 return;
+            }
 
             int maxLength = 0;
             foreach (Suggestion sug in Suggestions)
@@ -160,6 +162,11 @@ namespace ConsoleInteractive {
                         (sug.TooltipWidth == 0 ? 0 : (sug.TooltipWidth + 1))));
 
             if (Suggestions.Length == 0 || maxLength == 0) {
+                ClearSuggestions();
+                return;
+            }
+
+            if (Console.BufferWidth < maxLength) {
                 ClearSuggestions();
                 return;
             }
@@ -468,8 +475,10 @@ namespace ConsoleInteractive {
                 Console.SetCursorPosition(buf.CursorStart, cursorTop);
                 if (EnableColor)
                     Console.Write(sb.ToString());
-                else
+                else if (ConsoleWriter.EnableColor)
                     Console.Write(ResetColorCode + InternalWriter.ColorCodeRegex.Replace(sb.ToString(), string.Empty));
+                else
+                    Console.Write(InternalWriter.ColorCodeRegex.Replace(sb.ToString(), string.Empty));
             }
 
             private static void ClearSingleSuggestionPopup(BgMessageBuffer buf, int cursorTop) {
@@ -482,7 +491,10 @@ namespace ConsoleInteractive {
                 sb.Append(' ', buf.AfterTextSpace);
 
                 Console.SetCursorPosition(buf.CursorStart, cursorTop);
-                Console.Write(sb.ToString());
+                if (ConsoleWriter.EnableColor)
+                    Console.Write(sb.ToString());
+                else
+                    Console.Write(InternalWriter.ColorCodeRegex.Replace(sb.ToString(), string.Empty));
             }
 
             private static BgMessageBuffer[] GetBgMessageBuffer(RecentMessageHandler.RecentMessage? msg, int start, int length, int bufWidth) {
