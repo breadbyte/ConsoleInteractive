@@ -105,141 +105,172 @@ namespace ConsoleInteractive {
             while (!token.IsCancellationRequested) {
                 if (token.IsCancellationRequested) return;
 
-                while (Console.KeyAvailable == false) {
-                    if (token.IsCancellationRequested) return;
-                    Thread.Sleep(8);
-                }
 
-                bool needCheckBufUpdate = false;
-                while (Console.KeyAvailable) {
-                    ConsoleKeyInfo k = Console.ReadKey(true);
+                if (Console.IsInputRedirected) {
+                    while (Console.In.Peek() == -1) {
+                        if (token.IsCancellationRequested) return;
+                        Thread.Sleep(8);
+                    }
 
-                    if (token.IsCancellationRequested) return;
+                    bool needCheckBufUpdate = false;
 
-                    switch (k.Key) {
-                        case ConsoleKey.Enter:
-                            if (token.IsCancellationRequested) return;
-                            ConsoleSuggestion.HandleEnter();
-
-                            var input = ConsoleBuffer.FlushBuffer();
-                            ConsoleBuffer.AddToBackreadBuffer(input);
-                            MessageReceived?.Invoke(null, input.Replace("\0", string.Empty));
-
-                            /*
-                             * The user can call cancellation after a command on enter.
-                             * This helps us safely exit the reader thread.
-                             */
+                    int charInt;
+                    while ((charInt = Console.In.Read()) != -1) {
+                        char c = (char)charInt;
+                        ConsoleWriter.WriteLine("char = " + charInt);
+                        if (c == '\n') {
+                            OnEnter();
                             if (token.IsCancellationRequested) return;
                             needCheckBufUpdate = true;
-
-                            break;
-                        case ConsoleKey.Backspace:
-                            if (token.IsCancellationRequested) return;
-                            ConsoleBuffer.RemoveBackward(inWords: k.Modifiers == ConsoleModifiers.Control);
-                            needCheckBufUpdate = true;
-
-                            break;
-                        case ConsoleKey.Delete:
-                            if (token.IsCancellationRequested) return;
-                            ConsoleBuffer.RemoveForward(inWords: k.Modifiers == ConsoleModifiers.Control);
-                            needCheckBufUpdate = true;
-
-                            break;
-                        case ConsoleKey.End:
-                            if (token.IsCancellationRequested) return;
-                            ConsoleBuffer.MoveToEndBufferPosition();
-                            needCheckBufUpdate = true;
-
-                            break;
-                        case ConsoleKey.Home:
-                            if (token.IsCancellationRequested) return;
-                            ConsoleBuffer.MoveToStartBufferPosition();
-                            needCheckBufUpdate = true;
-
-                            break;
-                        case ConsoleKey.LeftArrow:
-                            if (token.IsCancellationRequested) return;
-                            ConsoleBuffer.MoveCursorBackward(inWords: k.Modifiers == ConsoleModifiers.Control);
-                            needCheckBufUpdate = true;
-
-                            break;
-                        case ConsoleKey.RightArrow:
-                            if (token.IsCancellationRequested) return;
-                            ConsoleBuffer.MoveCursorForward(inWords: k.Modifiers == ConsoleModifiers.Control);
-                            needCheckBufUpdate = true;
-
-                            break;
-                        case ConsoleKey.UpArrow:
-                            if (token.IsCancellationRequested) return;
-                            if (ConsoleSuggestion.HandleUpArrow()) break;
-                            lock (InternalContext.BackreadBufferLock) {
-                                if (ConsoleBuffer.BackreadBuffer.Count == 0) break;
-
-                                var backread = ConsoleBuffer.GetBackreadBackwards();
-                                var backreadCopied = ConsoleBuffer.isCurrentBufferCopied;
-                                var backreadString = ConsoleBuffer.UserInputBufferCopy;
-                                ConsoleBuffer.SetBufferContent(backread);
-
-                                // SetBufferContent clears the backread, so we need to pass it again
-                                if (backreadCopied) {
-                                    ConsoleBuffer.isCurrentBufferCopied = backreadCopied;
-                                    ConsoleBuffer.UserInputBufferCopy = backreadString;
-
-                                    Trace.Assert(ConsoleBuffer.isCurrentBufferCopied);
-                                }
-                            }
-                            needCheckBufUpdate = true;
-
-                            break;
-                        case ConsoleKey.DownArrow:
-                            if (token.IsCancellationRequested) return;
-                            if (ConsoleSuggestion.HandleDownArrow()) break;
-                            lock (InternalContext.BackreadBufferLock) {
-                                if (ConsoleBuffer.BackreadBuffer.Count == 0) break;
-
-                                var backread = ConsoleBuffer.GetBackreadForwards();
-                                var backreadCopied = ConsoleBuffer.isCurrentBufferCopied;
-                                var backreadString = ConsoleBuffer.UserInputBufferCopy;
-                                ConsoleBuffer.SetBufferContent(backread);
-
-
-                                // SetBufferContent clears the backread, so we need to pass it again
-                                if (backreadCopied) {
-                                    ConsoleBuffer.isCurrentBufferCopied = backreadCopied;
-                                    ConsoleBuffer.UserInputBufferCopy = backreadString;
-
-                                    Trace.Assert(ConsoleBuffer.isCurrentBufferCopied);
-                                }
-                            }
-                            needCheckBufUpdate = true;
-
-                            break;
-                        case ConsoleKey.Tab:
-                            if (token.IsCancellationRequested) return;
+                        } else if (c == '\t') {
                             ConsoleSuggestion.HandleTab();
+                        } else {
+                            if (ConsoleBuffer.Insert(c))
+                                needCheckBufUpdate = true;
+                        }
 
-                            break;
-                        case ConsoleKey.Escape:
-                            if (token.IsCancellationRequested) return;
-                            ConsoleSuggestion.HandleEscape();
+                        if (token.IsCancellationRequested) return;
+                    }
 
-                            break;
-                        default:
-                            if (token.IsCancellationRequested) return;
+                    if (needCheckBufUpdate)
+                        CheckInputBufferUpdate();
+                } else {
+                    while (!Console.KeyAvailable) {
+                        if (token.IsCancellationRequested) return;
+                        Thread.Sleep(8);
+                    }
 
-                            if (ConsoleBuffer.Insert(k.KeyChar))
+                    bool needCheckBufUpdate = false;
+                    while (Console.KeyAvailable) {
+                        ConsoleKeyInfo k = Console.ReadKey(true);
+                        if (token.IsCancellationRequested) return;
+
+                        switch (k.Key) {
+                            case ConsoleKey.Enter:
+                                ConsoleSuggestion.HandleEnter();
+
+                                OnEnter();
+
+                                /*
+                                 * The user can call cancellation after a command on enter.
+                                 * This helps us safely exit the reader thread.
+                                 */
+                                if (token.IsCancellationRequested) return;
                                 needCheckBufUpdate = true;
 
-                            break;
+                                break;
+                            case ConsoleKey.Backspace:
+                                ConsoleBuffer.RemoveBackward(inWords: k.Modifiers == ConsoleModifiers.Control);
+                                needCheckBufUpdate = true;
+
+                                break;
+                            case ConsoleKey.Delete:
+                                ConsoleBuffer.RemoveForward(inWords: k.Modifiers == ConsoleModifiers.Control);
+                                needCheckBufUpdate = true;
+
+                                break;
+                            case ConsoleKey.End:
+                                ConsoleBuffer.MoveToEndBufferPosition();
+                                needCheckBufUpdate = true;
+
+                                break;
+                            case ConsoleKey.Home:
+                                ConsoleBuffer.MoveToStartBufferPosition();
+                                needCheckBufUpdate = true;
+
+                                break;
+                            case ConsoleKey.LeftArrow:
+                                ConsoleBuffer.MoveCursorBackward(inWords: k.Modifiers == ConsoleModifiers.Control);
+                                needCheckBufUpdate = true;
+
+                                break;
+                            case ConsoleKey.RightArrow:
+                                ConsoleBuffer.MoveCursorForward(inWords: k.Modifiers == ConsoleModifiers.Control);
+                                needCheckBufUpdate = true;
+
+                                break;
+                            case ConsoleKey.UpArrow:
+                                if (ConsoleSuggestion.HandleUpArrow()) break;
+                                lock (InternalContext.BackreadBufferLock) {
+                                    if (ConsoleBuffer.BackreadBuffer.Count == 0) break;
+
+                                    var backread = ConsoleBuffer.GetBackreadBackwards();
+                                    var backreadCopied = ConsoleBuffer.isCurrentBufferCopied;
+                                    var backreadString = ConsoleBuffer.UserInputBufferCopy;
+                                    ConsoleBuffer.SetBufferContent(backread);
+
+                                    // SetBufferContent clears the backread, so we need to pass it again
+                                    if (backreadCopied) {
+                                        ConsoleBuffer.isCurrentBufferCopied = backreadCopied;
+                                        ConsoleBuffer.UserInputBufferCopy = backreadString;
+
+                                        Trace.Assert(ConsoleBuffer.isCurrentBufferCopied);
+                                    }
+                                }
+                                needCheckBufUpdate = true;
+
+                                break;
+                            case ConsoleKey.DownArrow:
+                                if (ConsoleSuggestion.HandleDownArrow()) break;
+                                lock (InternalContext.BackreadBufferLock) {
+                                    if (ConsoleBuffer.BackreadBuffer.Count == 0) break;
+
+                                    var backread = ConsoleBuffer.GetBackreadForwards();
+                                    var backreadCopied = ConsoleBuffer.isCurrentBufferCopied;
+                                    var backreadString = ConsoleBuffer.UserInputBufferCopy;
+                                    ConsoleBuffer.SetBufferContent(backread);
+
+
+                                    // SetBufferContent clears the backread, so we need to pass it again
+                                    if (backreadCopied) {
+                                        ConsoleBuffer.isCurrentBufferCopied = backreadCopied;
+                                        ConsoleBuffer.UserInputBufferCopy = backreadString;
+
+                                        Trace.Assert(ConsoleBuffer.isCurrentBufferCopied);
+                                    }
+                                }
+                                needCheckBufUpdate = true;
+
+                                break;
+                            case ConsoleKey.Tab:
+                                ConsoleSuggestion.HandleTab();
+
+                                break;
+                            case ConsoleKey.Escape:
+                                ConsoleSuggestion.HandleEscape();
+
+                                break;
+                            case ConsoleKey.P:
+                                if (k.Modifiers == ConsoleModifiers.Control)
+                                    ConsoleBuffer.PrintUserInput();
+                                else
+                                    goto default;
+
+                                break;
+                            default:
+                                if (ConsoleBuffer.Insert(k.KeyChar))
+                                    needCheckBufUpdate = true;
+
+                                break;
+                        }
+
+                        if (token.IsCancellationRequested) return;
+                    }
+
+                    if (needCheckBufUpdate) {
+                        ConsoleBuffer.RedrawInputArea();
+                        CheckInputBufferUpdate();
                     }
                 }
 
-                if (needCheckBufUpdate) {
-                    ConsoleBuffer.RedrawInputArea();
-                    CheckInputBufferUpdate();
-                }
             }
             InternalContext.BufferInitialized = false;
+        }
+
+        private static void OnEnter() {
+            var input = ConsoleBuffer.FlushBuffer();
+            ConsoleBuffer.AddToBackreadBuffer(input);
+            MessageReceived?.Invoke(null, input.Replace("\0", string.Empty));
         }
 
         public record Buffer {

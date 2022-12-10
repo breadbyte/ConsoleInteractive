@@ -339,8 +339,21 @@ namespace ConsoleInteractive {
                 BufferPosition = UserInputBuffer.Length;
         }
 
+        internal static void PrintUserInput() {
+            string input;
+            lock (InternalContext.UserInputBufferLock)
+                input = "Input: "
+                        + UserInputBuffer.ToString(0, BufferPosition).Replace("\0", string.Empty)
+                        + "|<--"
+                        + UserInputBuffer.ToString(BufferPosition, UserInputBuffer.Length - BufferPosition).Replace("\0", string.Empty);
+            ConsoleWriter.WriteLine(input);
+        }
+
         internal static void RedrawInputArea(bool RedrawAll = false) {
             if (InternalContext.SuppressInput)
+                return;
+
+            if (Console.IsOutputRedirected)
                 return;
 
             StringBuilder sb = new(Console.BufferWidth);

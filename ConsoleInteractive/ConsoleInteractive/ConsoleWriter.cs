@@ -8,10 +8,12 @@ using Wcwidth;
 
 namespace ConsoleInteractive {
     public static class ConsoleWriter {
+        public static bool EnableColor { get; set; } = true;
 
         public static void Init() {
             SetWindowsConsoleAnsi();
-            Console.Clear();
+            if (!Console.IsOutputRedirected)
+                Console.Clear();
         }
 
         private static void SetWindowsConsoleAnsi() {
@@ -32,6 +34,7 @@ namespace ConsoleInteractive {
     }
 
     internal static class InternalWriter {
+        internal readonly static Regex ColorCodeRegex = new(@"\u001B\[[\d;]+m", RegexOptions.Compiled);
 
         /// <summary>
         /// Gets the number of lines and the width of the first line of the message.
@@ -88,16 +91,20 @@ namespace ConsoleInteractive {
             lock (InternalContext.WriteLock) {
                 ConsoleSuggestion.BeforeWrite(value, linesAdded);
 
-                if (InternalContext.BufferInitialized)
-                    ConsoleBuffer.ClearVisibleUserInput(startPos: firstLineLength);
-                else
-                    Console.CursorLeft = 0;
+                if (Console.IsOutputRedirected) {
+                    Console.WriteLine(ConsoleWriter.EnableColor ? value : ColorCodeRegex.Replace(value, string.Empty));
+                } else {
+                    if (InternalContext.BufferInitialized)
+                        ConsoleBuffer.ClearVisibleUserInput(startPos: firstLineLength);
+                    else
+                        Console.CursorLeft = 0;
 
-                Console.WriteLine(value);
+                    Console.WriteLine(ConsoleWriter.EnableColor ? value : ColorCodeRegex.Replace(value, string.Empty));
 
-                // Only redraw if we have a buffer initialized.
-                if (InternalContext.BufferInitialized)
-                    ConsoleBuffer.RedrawInputArea(RedrawAll: true);
+                    // Only redraw if we have a buffer initialized.
+                    if (InternalContext.BufferInitialized)
+                        ConsoleBuffer.RedrawInputArea(RedrawAll: true);
+                }
 
                 ConsoleSuggestion.AfterWrite();
             }

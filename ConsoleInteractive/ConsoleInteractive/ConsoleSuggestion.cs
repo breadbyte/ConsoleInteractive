@@ -8,6 +8,8 @@ namespace ConsoleInteractive {
     public static class ConsoleSuggestion {
         public const int MaxSuggestionCount = 6, MaxSuggestionLength = 30;
 
+        public static bool EnableColor { get; set; } = true;
+
         private static bool InUse = false;
 
         private static bool AlreadyTriggerTab = false, LastKeyIsTab = false, Hide = false, HideAndClear = false;
@@ -148,6 +150,9 @@ namespace ConsoleInteractive {
         }
 
         public static void UpdateSuggestions(Suggestion[] Suggestions, Tuple<int, int> range) {
+            if (Console.IsOutputRedirected)
+                return;
+
             int maxLength = 0;
             foreach (Suggestion sug in Suggestions)
                 maxLength = Math.Max(maxLength,
@@ -186,13 +191,13 @@ namespace ConsoleInteractive {
         }
 
         public static void ClearSuggestions() {
-            lock (InternalContext.WriteLock) {
-                if (InUse) {
+            if (InUse) {
+                lock (InternalContext.WriteLock) {
                     InUse = false;
                     DrawHelper.ClearSuggestionPopup();
-                } else if (Hide) {
-                    HideAndClear = true;
                 }
+            } else if (Hide) {
+                HideAndClear = true;
             }
         }
 
@@ -461,7 +466,10 @@ namespace ConsoleInteractive {
                     sb.Append(' ');
 
                 Console.SetCursorPosition(buf.CursorStart, cursorTop);
-                Console.Write(sb.ToString());
+                if (EnableColor)
+                    Console.Write(sb.ToString());
+                else
+                    Console.Write(ResetColorCode + InternalWriter.ColorCodeRegex.Replace(sb.ToString(), string.Empty));
             }
 
             private static void ClearSingleSuggestionPopup(BgMessageBuffer buf, int cursorTop) {
