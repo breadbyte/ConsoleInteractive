@@ -21,12 +21,12 @@ namespace ConsoleInteractive {
         private static Suggestion[] Suggestions = Array.Empty<Suggestion>();
 
 
-        internal static void BeforeWriteLine(string message, int linesAdded) {
+        internal static void BeforeWrite(string message, int linesAdded) {
             if (InUse) DrawHelper.ClearSuggestionPopup(linesAdded);
             DrawHelper.AddMessage(message);
         }
 
-        internal static void AfterWriteLine() {
+        internal static void AfterWrite() {
             if (InUse) DrawHelper.DrawSuggestionPopup();
         }
 
@@ -57,14 +57,16 @@ namespace ConsoleInteractive {
                     HideAndClear = false;
                     return true;
                 } else if (InUse) {
+                    int suggestionWidth;
                     if (AlreadyTriggerTab) {
                         if (LastKeyIsTab)
                             HandleDownArrow();
-                        ConsoleBuffer.Replace(LastTextRange.Item1, LastTextRange.Item2, Suggestions[ChoosenIndex].Text);
+                        suggestionWidth = ConsoleBuffer.Replace(LastTextRange.Item1, LastTextRange.Item2, Suggestions[ChoosenIndex].Text);
                     } else {
-                        ConsoleBuffer.Replace(TargetTextRange.Item1, TargetTextRange.Item2, Suggestions[ChoosenIndex].Text);
+                        suggestionWidth = ConsoleBuffer.Replace(TargetTextRange.Item1, TargetTextRange.Item2, Suggestions[ChoosenIndex].Text);
                     }
-                    LastTextRange = new(TargetTextRange.Item1, ConsoleBuffer.BufferPosition);
+                    LastTextRange = new(TargetTextRange.Item1, TargetTextRange.Item1 + suggestionWidth);
+                    ConsoleBuffer.RedrawInputArea();
                     AlreadyTriggerTab = true;
                     LastKeyIsTab = true;
                     if (Suggestions[ChoosenIndex].Text == "/")
@@ -316,54 +318,62 @@ namespace ConsoleInteractive {
             internal static void DrawSuggestionPopup(bool refreshMsgBuf = true) {
                 BgMessageBuffer[] messageBuffers = Array.Empty<BgMessageBuffer>();
                 int curBufIdx = -1, nextMessageIdx = 0;
-                InternalContext.SetCursorVisible(false);
-                int top = InternalContext.CurrentCursorTopPos, left = InternalContext.CurrentCursorLeftPos;
-                LastDrawStartPos = GetDrawStartPos();
-                for (int i = ViewBottom - 1; i >= ViewTop; --i) {
-                    if (refreshMsgBuf) {
-                        if (curBufIdx < 0) {
-                            messageBuffers = GetBgMessageBuffer(RecentMessageHandler.GetRecentMessage(nextMessageIdx), LastDrawStartPos, PopupWidth);
-                            curBufIdx = messageBuffers.Length - 1;
-                            ++nextMessageIdx;
+                lock (InternalContext.WriteLock) {
+                    (int left, int top) = Console.GetCursorPosition();
+                    LastDrawStartPos = GetDrawStartPos();
+                    InternalContext.SetCursorVisible(false);
+                    for (int i = ViewBottom - 1; i >= ViewTop; --i) {
+                        if (refreshMsgBuf) {
+                            if (curBufIdx < 0) {
+                                messageBuffers = GetBgMessageBuffer(RecentMessageHandler.GetRecentMessage(nextMessageIdx), LastDrawStartPos, PopupWidth);
+                                curBufIdx = messageBuffers.Length - 1;
+                                ++nextMessageIdx;
+                            }
+                            BgBuffer[i - ViewTop] = messageBuffers[curBufIdx];
+                            --curBufIdx;
                         }
-                        BgBuffer[i - ViewTop] = messageBuffers[curBufIdx];
-                        --curBufIdx;
+                        DrawSingleSuggestionPopup(i, BgBuffer[i - ViewTop], cursorTop: top - (ViewBottom - i));
                     }
-                    DrawSingleSuggestionPopup(i, BgBuffer[i - ViewTop], cursorTop: top - (ViewBottom - i));
+                    Console.SetCursorPosition(left, top);
+                    InternalContext.SetCursorVisible(true);
                 }
-                Console.SetCursorPosition(left, top);
-                InternalContext.SetCursorVisible(true);
             }
 
             internal static void ClearSuggestionPopup(int linesAdded = 0) {
                 int DisplaySuggestionsCnt = Math.Min(MaxSuggestionCount, Suggestions.Length); // Todo: head
-                int drawStartPos = GetDrawStartPos();
-                InternalContext.SetCursorVisible(false);
-                int top = InternalContext.CurrentCursorTopPos, left = InternalContext.CurrentCursorLeftPos;
-                for (int i = 0; i < DisplaySuggestionsCnt; ++i) {
-                    if (linesAdded > 0 && i >= linesAdded && drawStartPos == LastDrawStartPos) break;
-                    ClearSingleSuggestionPopup(BgBuffer[i], cursorTop: top - (DisplaySuggestionsCnt - i));
+                lock (InternalContext.WriteLock) {
+                    int drawStartPos = GetDrawStartPos();
+                    (int left, int top) = Console.GetCursorPosition();
+                    InternalContext.SetCursorVisible(false);
+                    for (int i = 0; i < DisplaySuggestionsCnt; ++i) {
+                        if (linesAdded > 0 && i >= linesAdded && drawStartPos == LastDrawStartPos) break;
+                        ClearSingleSuggestionPopup(BgBuffer[i], cursorTop: top - (DisplaySuggestionsCnt - i));
+                    }
+                    Console.SetCursorPosition(left, top);
+                    InternalContext.SetCursorVisible(true);
                 }
-                Console.SetCursorPosition(left, top);
-                InternalContext.SetCursorVisible(true);
             }
 
             internal static void RedrawOnArrowKey(int offset) {
-                InternalContext.SetCursorVisible(false);
-                int top = InternalContext.CurrentCursorTopPos, left = InternalContext.CurrentCursorLeftPos;
+                lock (InternalContext.WriteLock) {
+                    (int left, int top) = Console.GetCursorPosition();
+                    InternalContext.SetCursorVisible(false);
 
-                int cursorTop = top - (ViewBottom - ChoosenIndex);
-                DrawSingleSuggestionPopup(ChoosenIndex, BgBuffer[ChoosenIndex - ViewTop], cursorTop);
-                DrawSingleSuggestionPopup(ChoosenIndex + offset, BgBuffer[ChoosenIndex - ViewTop + offset], cursorTop + offset);
+                    int cursorTop = top - (ViewBottom - ChoosenIndex);
+                    DrawSingleSuggestionPopup(ChoosenIndex, BgBuffer[ChoosenIndex - ViewTop], cursorTop);
+                    DrawSingleSuggestionPopup(ChoosenIndex + offset, BgBuffer[ChoosenIndex - ViewTop + offset], cursorTop + offset);
 
-                Console.SetCursorPosition(left, top);
-                InternalContext.SetCursorVisible(true);
+                    Console.SetCursorPosition(left, top);
+                    InternalContext.SetCursorVisible(true);
+                }
             }
 
             internal static void RedrawOnTab() {
-                if (GetDrawStartPos() != LastDrawStartPos) {
-                    ClearSuggestionPopup();
-                    DrawSuggestionPopup(refreshMsgBuf: true);
+                lock (InternalContext.WriteLock) {
+                    if (GetDrawStartPos() != LastDrawStartPos) {
+                        ClearSuggestionPopup();
+                        DrawSuggestionPopup(refreshMsgBuf: true);
+                    }
                 }
             }
 
@@ -539,10 +549,11 @@ namespace ConsoleInteractive {
 
                     buffers.Add(new BgMessageBuffer(CursorStart, CutsorEnd, AfterTextSpace, Text, StartSpace, EndSpace));
 
-                    while (cursorPos < InternalContext.CursorLeftPosLimit) {
+                    int leftPosLimit = InternalContext.CursorLeftPosLimit;
+                    while (cursorPos <= leftPosLimit) {
                         if (charIndex < chars.Length) {
                             int width = Math.Max(0, UnicodeCalculator.GetWidth(chars[charIndex]));
-                            if (cursorPos + width >= InternalContext.CursorLeftPosLimit)
+                            if (cursorPos + width > leftPosLimit)
                                 break;
                             cursorPos += width;
                             ++charIndex;

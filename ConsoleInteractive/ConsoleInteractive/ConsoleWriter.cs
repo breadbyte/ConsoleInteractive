@@ -32,9 +32,13 @@ namespace ConsoleInteractive {
     }
 
     internal static class InternalWriter {
-        private static int GetLineCntInTerminal(string value) {
+
+        /// <summary>
+        /// Gets the number of lines and the width of the first line of the message.
+        /// </summary>
+        private static Tuple<int, int> GetLineCountInTerminal(string value) {
             bool escape = false;
-            int lineCnt = 1, cursorPos = 0;
+            int lineCnt = 0, cursorPos = 0, firstLineLength = -1;
             foreach (char c in value) {
                 if (!escape && c == '\u001B') {
                     escape = true;
@@ -47,12 +51,16 @@ namespace ConsoleInteractive {
                 }
 
                 if (c == '\n') {
+                    if (lineCnt == 0)
+                        firstLineLength = cursorPos;
                     ++lineCnt;
                     cursorPos = 0;
                 }
 
                 int width = Math.Max(0, UnicodeCalculator.GetWidth(c));
                 if (cursorPos + width > InternalContext.CursorLeftPosLimit) {
+                    if (lineCnt == 0)
+                        firstLineLength = cursorPos;
                     ++lineCnt;
                     cursorPos = width;
                 } else {
@@ -60,55 +68,37 @@ namespace ConsoleInteractive {
                 }
 
                 if (cursorPos >= InternalContext.CursorLeftPosLimit) {
+                    if (lineCnt == 0)
+                        firstLineLength = cursorPos;
                     ++lineCnt;
                     cursorPos = 0;
                 }
             }
-            return lineCnt;
+            if (firstLineLength == -1)
+                firstLineLength = cursorPos;
+            if (lineCnt == 0)
+                ++lineCnt;
+            return new(lineCnt, firstLineLength);
         }
 
         private static void Write(string value) {
-            int linesAdded = GetLineCntInTerminal(value);
+            (int linesAdded, int firstLineLength) = GetLineCountInTerminal(value);
 
             lock (InternalContext.WriteLock) {
-                ConsoleSuggestion.BeforeWriteLine(value, linesAdded);
+                ConsoleSuggestion.BeforeWrite(value, linesAdded);
 
-                // If the buffer is initialized, then we should get the current cursor position
-                // because we potentially are writing over user input.
-                //
-                // 0 otherwise, since we know that there is no user input,
-                // so we can start at the beginning.
-                int currentCursorPos = 0;
-                if (InternalContext.BufferInitialized) {
-                    currentCursorPos = InternalContext.CurrentCursorLeftPos;
-                    ConsoleBuffer.ClearVisibleUserInput();
-                } else {
-                    // Clears the entire line. Not optimal as it also clears blank spaces,
-                    // but ensures that the entire line is cleared.
-                    ConsoleBuffer.ClearCurrentLine();
-                }
+                if (InternalContext.BufferInitialized)
+                    ConsoleBuffer.ClearVisibleUserInput(startPos: firstLineLength);
+                else
+                    Console.CursorLeft = 0;
 
                 Console.WriteLine(value);
 
-                // Determine if we need to use the previous top position.
-                // i.e. vertically constrained.
-                if (InternalContext.CurrentCursorTopPos + linesAdded >= InternalContext.CursorTopPosLimit)
-                    Interlocked.Exchange(ref InternalContext.CurrentCursorTopPos, InternalContext.CursorTopPosLimit - 1);
-                else
-                    Interlocked.Add(ref InternalContext.CurrentCursorTopPos, linesAdded);
-
                 // Only redraw if we have a buffer initialized.
-                if (InternalContext.BufferInitialized) {
-                    ConsoleBuffer.RedrawInput();
+                if (InternalContext.BufferInitialized)
+                    ConsoleBuffer.RedrawInputArea(RedrawAll: true);
 
-                    // Need to redraw the prefix manually in cases that RedrawInput() doesn't
-                    ConsoleBuffer.DrawPrefix();
-                }
-
-                Console.SetCursorPosition(currentCursorPos, InternalContext.CurrentCursorTopPos);
-                InternalContext.SetLeftCursorPosition(currentCursorPos);
-
-                ConsoleSuggestion.AfterWriteLine();
+                ConsoleSuggestion.AfterWrite();
             }
         }
 

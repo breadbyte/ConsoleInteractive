@@ -21,7 +21,8 @@ namespace ConsoleInteractive {
         }
 
         public static Buffer GetBufferContent() {
-            return new Buffer(ConsoleBuffer.UserInputBuffer.ToString()!, ConsoleBuffer.BufferPosition);
+            lock (InternalContext.UserInputBufferLock)
+                return new Buffer(ConsoleBuffer.UserInputBuffer.ToString()!, ConsoleBuffer.BufferPosition);
         }
 
         public static void ClearBuffer() {
@@ -33,7 +34,11 @@ namespace ConsoleInteractive {
             Buffer InputBuffer = GetBufferContent();
             if (InputBuffer != LastInputBuffer) {
                 LastInputBuffer = InputBuffer;
-                OnInputChange?.Invoke(null, LastInputBuffer);
+                int cursorPos = InputBuffer.CursorPosition;
+                for (int i = 0; i < InputBuffer.CursorPosition; i++)
+                    if (InputBuffer.Text[i] == '\0')
+                        --cursorPos;
+                OnInputChange?.Invoke(null, new(InputBuffer.Text.Replace("\0", string.Empty), cursorPos));
             }
         }
 
@@ -68,7 +73,7 @@ namespace ConsoleInteractive {
                 InternalContext.BufferInitialized = false;
                 ConsoleBuffer.ClearBackreadBuffer();
                 ConsoleBuffer.FlushBuffer();
-                ConsoleBuffer.ClearCurrentLine();
+                ConsoleBuffer.ClearVisibleUserInput();
             }
         }
 
@@ -100,177 +105,151 @@ namespace ConsoleInteractive {
             while (!token.IsCancellationRequested) {
                 if (token.IsCancellationRequested) return;
 
+                while (Console.KeyAvailable == false) {
+                    if (token.IsCancellationRequested) return;
+                    Thread.Sleep(8);
+                }
+
+                bool needCheckBufUpdate = false, widthChange = false;
+
                 // TODO: Guard against window resize
                 // this is not entirely foolproof
                 // need to interact internally with InternalContext
                 // and mess with the ConsoleBuffer to make this work
-                InternalContext.CursorLeftPosLimit = Console.BufferWidth;
-                InternalContext.CursorTopPosLimit = Console.BufferHeight;
+                int newCursorLeftLimit = Console.BufferWidth;
+                int oldCursorLeftLimit = InternalContext.CursorLeftPosLimit;
+                InternalContext.CursorLeftPosLimit = newCursorLeftLimit;
+                if (oldCursorLeftLimit != newCursorLeftLimit)
+                    widthChange = true;
 
-                while (Console.KeyAvailable == false) {
+                while (Console.KeyAvailable) {
+                    ConsoleKeyInfo k = Console.ReadKey(true);
+
                     if (token.IsCancellationRequested) return;
-                    Thread.Sleep(16);
-                    continue;
-                }
 
-                ConsoleKeyInfo k = Console.ReadKey(true);
+                    switch (k.Key) {
+                        case ConsoleKey.Enter:
+                            if (token.IsCancellationRequested) return;
+                            ConsoleSuggestion.HandleEnter();
 
-                if (token.IsCancellationRequested) return;
-
-                switch (k.Key) {
-                    case ConsoleKey.Enter:
-                        if (token.IsCancellationRequested) return;
-                        ConsoleSuggestion.HandleEnter();
-
-                        lock (InternalContext.WriteLock) {
-                            ConsoleBuffer.ClearVisibleUserInput();
                             var input = ConsoleBuffer.FlushBuffer();
-
                             ConsoleBuffer.AddToBackreadBuffer(input);
-                            MessageReceived?.Invoke(null, input);
+                            MessageReceived?.Invoke(null, input.Replace("\0", string.Empty));
 
                             /*
                              * The user can call cancellation after a command on enter.
                              * This helps us safely exit the reader thread.
                              */
                             if (token.IsCancellationRequested) return;
-                        }
-                        CheckInputBufferUpdate();
+                            needCheckBufUpdate = true;
 
-                        break;
-                    case ConsoleKey.Backspace:
-                        if (token.IsCancellationRequested) return;
-                        lock (InternalContext.WriteLock) {
-                            if (k.Modifiers == ConsoleModifiers.Control)
-                                ConsoleBuffer.RemoveBackward(inWords: true);
-                            else
-                                ConsoleBuffer.RemoveBackward();
-                        }
-                        CheckInputBufferUpdate();
+                            break;
+                        case ConsoleKey.Backspace:
+                            if (token.IsCancellationRequested) return;
+                            ConsoleBuffer.RemoveBackward(inWords: k.Modifiers == ConsoleModifiers.Control);
+                            needCheckBufUpdate = true;
 
-                        break;
-                    case ConsoleKey.Delete:
-                        if (token.IsCancellationRequested) return;
-                        lock (InternalContext.WriteLock) {
-                            if (k.Modifiers == ConsoleModifiers.Control)
-                                ConsoleBuffer.RemoveForward(inWords: true);
-                            else
-                                ConsoleBuffer.RemoveForward();
-                        }
-                        CheckInputBufferUpdate();
+                            break;
+                        case ConsoleKey.Delete:
+                            if (token.IsCancellationRequested) return;
+                            ConsoleBuffer.RemoveForward(inWords: k.Modifiers == ConsoleModifiers.Control);
+                            needCheckBufUpdate = true;
 
-                        break;
-                    case ConsoleKey.End:
-                        if (token.IsCancellationRequested) return;
-                        lock (InternalContext.WriteLock)
+                            break;
+                        case ConsoleKey.End:
+                            if (token.IsCancellationRequested) return;
                             ConsoleBuffer.MoveToEndBufferPosition();
-                        CheckInputBufferUpdate();
+                            needCheckBufUpdate = true;
 
-                        break;
-                    case ConsoleKey.Home:
-                        if (token.IsCancellationRequested) return;
-                        lock (InternalContext.WriteLock)
+                            break;
+                        case ConsoleKey.Home:
+                            if (token.IsCancellationRequested) return;
                             ConsoleBuffer.MoveToStartBufferPosition();
-                        CheckInputBufferUpdate();
+                            needCheckBufUpdate = true;
 
-                        break;
-                    case ConsoleKey.LeftArrow:
-                        if (token.IsCancellationRequested) return;
-                        lock (InternalContext.WriteLock) {
-                            if (k.Modifiers == ConsoleModifiers.Control)
-                                ConsoleBuffer.MoveCursorBackward(inWords: true);
-                            else
-                                ConsoleBuffer.MoveCursorBackward();
-                        }
-                        CheckInputBufferUpdate();
+                            break;
+                        case ConsoleKey.LeftArrow:
+                            if (token.IsCancellationRequested) return;
+                            ConsoleBuffer.MoveCursorBackward(inWords: k.Modifiers == ConsoleModifiers.Control);
+                            needCheckBufUpdate = true;
 
-                        break;
-                    case ConsoleKey.RightArrow:
-                        if (token.IsCancellationRequested) return;
-                        lock (InternalContext.WriteLock) {
-                            if (k.Modifiers == ConsoleModifiers.Control)
-                                ConsoleBuffer.MoveCursorForward(inWords: true);
-                            else
-                                ConsoleBuffer.MoveCursorForward();
-                        }
-                        CheckInputBufferUpdate();
+                            break;
+                        case ConsoleKey.RightArrow:
+                            if (token.IsCancellationRequested) return;
+                            ConsoleBuffer.MoveCursorForward(inWords: k.Modifiers == ConsoleModifiers.Control);
+                            needCheckBufUpdate = true;
 
-                        break;
-                    case ConsoleKey.UpArrow:
-                        if (token.IsCancellationRequested) return;
-                        if (ConsoleSuggestion.HandleUpArrow()) break;
-                        lock (InternalContext.WriteLock) {
-                            if (ConsoleBuffer.BackreadBuffer.Count == 0) break;
+                            break;
+                        case ConsoleKey.UpArrow:
+                            if (token.IsCancellationRequested) return;
+                            if (ConsoleSuggestion.HandleUpArrow()) break;
+                            lock (InternalContext.BackreadBufferLock) {
+                                if (ConsoleBuffer.BackreadBuffer.Count == 0) break;
 
-                            var backread = ConsoleBuffer.GetBackreadBackwards();
-                            var backreadCopied = ConsoleBuffer.isCurrentBufferCopied;
-                            var backreadString = ConsoleBuffer.UserInputBufferCopy;
-                            ConsoleBuffer.SetBufferContent(backread);
-                            ConsoleBuffer.MoveToEndBufferPosition();
+                                var backread = ConsoleBuffer.GetBackreadBackwards();
+                                var backreadCopied = ConsoleBuffer.isCurrentBufferCopied;
+                                var backreadString = ConsoleBuffer.UserInputBufferCopy;
+                                ConsoleBuffer.SetBufferContent(backread);
 
-                            // SetBufferContent clears the backread, so we need to pass it again
-                            if (backreadCopied) {
-                                ConsoleBuffer.isCurrentBufferCopied = backreadCopied;
-                                ConsoleBuffer.UserInputBufferCopy = backreadString;
+                                // SetBufferContent clears the backread, so we need to pass it again
+                                if (backreadCopied) {
+                                    ConsoleBuffer.isCurrentBufferCopied = backreadCopied;
+                                    ConsoleBuffer.UserInputBufferCopy = backreadString;
 
-                                Trace.Assert(ConsoleBuffer.isCurrentBufferCopied);
+                                    Trace.Assert(ConsoleBuffer.isCurrentBufferCopied);
+                                }
                             }
-                        }
+                            needCheckBufUpdate = true;
 
-                        break;
-                    case ConsoleKey.DownArrow:
-                        if (token.IsCancellationRequested) return;
-                        if (ConsoleSuggestion.HandleDownArrow()) break;
-                        lock (InternalContext.WriteLock) {
-                            if (ConsoleBuffer.BackreadBuffer.Count == 0) break;
+                            break;
+                        case ConsoleKey.DownArrow:
+                            if (token.IsCancellationRequested) return;
+                            if (ConsoleSuggestion.HandleDownArrow()) break;
+                            lock (InternalContext.BackreadBufferLock) {
+                                if (ConsoleBuffer.BackreadBuffer.Count == 0) break;
 
-                            var backread = ConsoleBuffer.GetBackreadForwards();
-                            var backreadCopied = ConsoleBuffer.isCurrentBufferCopied;
-                            var backreadString = ConsoleBuffer.UserInputBufferCopy;
-                            ConsoleBuffer.SetBufferContent(backread);
-                            ConsoleBuffer.MoveToEndBufferPosition();
+                                var backread = ConsoleBuffer.GetBackreadForwards();
+                                var backreadCopied = ConsoleBuffer.isCurrentBufferCopied;
+                                var backreadString = ConsoleBuffer.UserInputBufferCopy;
+                                ConsoleBuffer.SetBufferContent(backread);
 
 
-                            // SetBufferContent clears the backread, so we need to pass it again
-                            if (backreadCopied) {
-                                ConsoleBuffer.isCurrentBufferCopied = backreadCopied;
-                                ConsoleBuffer.UserInputBufferCopy = backreadString;
+                                // SetBufferContent clears the backread, so we need to pass it again
+                                if (backreadCopied) {
+                                    ConsoleBuffer.isCurrentBufferCopied = backreadCopied;
+                                    ConsoleBuffer.UserInputBufferCopy = backreadString;
 
-                                Trace.Assert(ConsoleBuffer.isCurrentBufferCopied);
+                                    Trace.Assert(ConsoleBuffer.isCurrentBufferCopied);
+                                }
                             }
-                        }
+                            needCheckBufUpdate = true;
 
-                        break;
-                    case ConsoleKey.Tab:
-                        if (token.IsCancellationRequested) return;
-                        ConsoleSuggestion.HandleTab();
+                            break;
+                        case ConsoleKey.Tab:
+                            if (token.IsCancellationRequested) return;
+                            ConsoleSuggestion.HandleTab();
 
-                        break;
-                    case ConsoleKey.Escape:
-                        if (token.IsCancellationRequested) return;
-                        ConsoleSuggestion.HandleEscape();
+                            break;
+                        case ConsoleKey.Escape:
+                            if (token.IsCancellationRequested) return;
+                            ConsoleSuggestion.HandleEscape();
 
-                        break;
-                    default:
-                        if (token.IsCancellationRequested) return;
+                            break;
+                        default:
+                            if (token.IsCancellationRequested) return;
 
-                        // If the keypress doesn't map to any Unicode characters, or invalid characters.
-                        switch (k.KeyChar) {
-                            case '\0':
-                            case '\t':
-                            case '\r':
-                            case '\n':
-                                continue;
-                        }
+                            if (ConsoleBuffer.Insert(k.KeyChar))
+                                needCheckBufUpdate = true;
 
-                        lock (InternalContext.WriteLock)
-                            ConsoleBuffer.Insert(k.KeyChar);
-
-                        CheckInputBufferUpdate();
-
-                        if (token.IsCancellationRequested) return;
-                        break;
+                            break;
+                    }
                 }
+
+                if (widthChange || needCheckBufUpdate)
+                    ConsoleBuffer.RedrawInputArea(WidthChange: widthChange);
+
+                if (needCheckBufUpdate)
+                    CheckInputBufferUpdate();
             }
             InternalContext.BufferInitialized = false;
         }
