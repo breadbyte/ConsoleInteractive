@@ -10,8 +10,6 @@ namespace ConsoleInteractive {
 
         internal static Regex FormatRegex = new("(§[0-9a-fk-orw-z])((?:[^§]|§[^0-9a-fk-orw-z])*)", RegexOptions.Compiled);
 
-        internal static volatile int CursorLeftPosLimit = Console.BufferWidth;
-
         internal static volatile bool _suppressInput = false;
         internal static volatile bool BufferInitialized = false;
 

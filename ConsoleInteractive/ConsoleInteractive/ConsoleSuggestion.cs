@@ -315,17 +315,18 @@ namespace ConsoleInteractive {
             private static int LastDrawStartPos = -1;
             private static readonly BgMessageBuffer[] BgBuffer = new BgMessageBuffer[MaxSuggestionCount];
 
-            internal static void DrawSuggestionPopup(bool refreshMsgBuf = true) {
+            internal static void DrawSuggestionPopup(bool refreshMsgBuf = true, int bufWidth = -1) {
                 BgMessageBuffer[] messageBuffers = Array.Empty<BgMessageBuffer>();
                 int curBufIdx = -1, nextMessageIdx = 0;
                 lock (InternalContext.WriteLock) {
+                    if (bufWidth == -1) bufWidth = Console.BufferWidth;
                     (int left, int top) = Console.GetCursorPosition();
-                    LastDrawStartPos = GetDrawStartPos();
+                    LastDrawStartPos = GetDrawStartPos(bufWidth);
                     InternalContext.SetCursorVisible(false);
                     for (int i = ViewBottom - 1; i >= ViewTop; --i) {
                         if (refreshMsgBuf) {
                             if (curBufIdx < 0) {
-                                messageBuffers = GetBgMessageBuffer(RecentMessageHandler.GetRecentMessage(nextMessageIdx), LastDrawStartPos, PopupWidth);
+                                messageBuffers = GetBgMessageBuffer(RecentMessageHandler.GetRecentMessage(nextMessageIdx), LastDrawStartPos, PopupWidth, bufWidth);
                                 curBufIdx = messageBuffers.Length - 1;
                                 ++nextMessageIdx;
                             }
@@ -339,10 +340,11 @@ namespace ConsoleInteractive {
                 }
             }
 
-            internal static void ClearSuggestionPopup(int linesAdded = 0) {
+            internal static void ClearSuggestionPopup(int linesAdded = 0, int bufWidth = -1) {
                 int DisplaySuggestionsCnt = Math.Min(MaxSuggestionCount, Suggestions.Length); // Todo: head
                 lock (InternalContext.WriteLock) {
-                    int drawStartPos = GetDrawStartPos();
+                    if (bufWidth == -1) bufWidth = Console.BufferWidth;
+                    int drawStartPos = GetDrawStartPos(bufWidth);
                     (int left, int top) = Console.GetCursorPosition();
                     InternalContext.SetCursorVisible(false);
                     for (int i = 0; i < DisplaySuggestionsCnt; ++i) {
@@ -370,9 +372,10 @@ namespace ConsoleInteractive {
 
             internal static void RedrawOnTab() {
                 lock (InternalContext.WriteLock) {
-                    if (GetDrawStartPos() != LastDrawStartPos) {
-                        ClearSuggestionPopup();
-                        DrawSuggestionPopup(refreshMsgBuf: true);
+                    int bufWidth = Console.BufferWidth;
+                    if (GetDrawStartPos(bufWidth) != LastDrawStartPos) {
+                        ClearSuggestionPopup(bufWidth: bufWidth);
+                        DrawSuggestionPopup(refreshMsgBuf: true, bufWidth: bufWidth);
                     }
                 }
             }
@@ -381,8 +384,8 @@ namespace ConsoleInteractive {
                 RecentMessageHandler.AddMessage(message);
             }
 
-            private static int GetDrawStartPos() {
-                return Math.Max(0, Math.Min(InternalContext.CursorLeftPosLimit - PopupWidth, StartIndex + ConsoleBuffer.PrefixTotalLength - ConsoleBuffer.BufferOutputAnchor));
+            private static int GetDrawStartPos(int bufWidth) {
+                return Math.Max(0, Math.Min(bufWidth - PopupWidth, StartIndex + ConsoleBuffer.PrefixTotalLength - ConsoleBuffer.BufferOutputAnchor));
             }
 
             private static void DrawSingleSuggestionPopup(int index, BgMessageBuffer buf, int cursorTop) {
@@ -474,7 +477,7 @@ namespace ConsoleInteractive {
                 Console.Write(sb.ToString());
             }
 
-            private static BgMessageBuffer[] GetBgMessageBuffer(RecentMessageHandler.RecentMessage? msg, int start, int length) {
+            private static BgMessageBuffer[] GetBgMessageBuffer(RecentMessageHandler.RecentMessage? msg, int start, int length, int bufWidth) {
                 if (msg == null || msg.Message.Length == 0)
                     return new BgMessageBuffer[1] { new BgMessageBuffer(start, start + length, length) };
 
@@ -549,11 +552,10 @@ namespace ConsoleInteractive {
 
                     buffers.Add(new BgMessageBuffer(CursorStart, CutsorEnd, AfterTextSpace, Text, StartSpace, EndSpace));
 
-                    int leftPosLimit = InternalContext.CursorLeftPosLimit;
-                    while (cursorPos <= leftPosLimit) {
+                    while (cursorPos <= bufWidth) {
                         if (charIndex < chars.Length) {
                             int width = Math.Max(0, UnicodeCalculator.GetWidth(chars[charIndex]));
-                            if (cursorPos + width > leftPosLimit)
+                            if (cursorPos + width > bufWidth)
                                 break;
                             cursorPos += width;
                             ++charIndex;

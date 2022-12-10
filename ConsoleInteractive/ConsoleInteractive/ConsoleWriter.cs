@@ -39,6 +39,7 @@ namespace ConsoleInteractive {
         private static Tuple<int, int> GetLineCountInTerminal(string value) {
             bool escape = false;
             int lineCnt = 0, cursorPos = 0, firstLineLength = -1;
+            int bufWidth = Console.BufferWidth;
             foreach (char c in value) {
                 if (!escape && c == '\u001B') {
                     escape = true;
@@ -58,7 +59,7 @@ namespace ConsoleInteractive {
                 }
 
                 int width = Math.Max(0, UnicodeCalculator.GetWidth(c));
-                if (cursorPos + width > InternalContext.CursorLeftPosLimit) {
+                if (cursorPos + width > bufWidth) {
                     if (lineCnt == 0)
                         firstLineLength = cursorPos;
                     ++lineCnt;
@@ -67,7 +68,7 @@ namespace ConsoleInteractive {
                     cursorPos += width;
                 }
 
-                if (cursorPos >= InternalContext.CursorLeftPosLimit) {
+                if (cursorPos >= bufWidth) {
                     if (lineCnt == 0)
                         firstLineLength = cursorPos;
                     ++lineCnt;
@@ -76,7 +77,7 @@ namespace ConsoleInteractive {
             }
             if (firstLineLength == -1)
                 firstLineLength = cursorPos;
-            if (lineCnt == 0)
+            if (lineCnt == 0 || cursorPos > 0)
                 ++lineCnt;
             return new(lineCnt, firstLineLength);
         }

@@ -110,18 +110,7 @@ namespace ConsoleInteractive {
                     Thread.Sleep(8);
                 }
 
-                bool needCheckBufUpdate = false, widthChange = false;
-
-                // TODO: Guard against window resize
-                // this is not entirely foolproof
-                // need to interact internally with InternalContext
-                // and mess with the ConsoleBuffer to make this work
-                int newCursorLeftLimit = Console.BufferWidth;
-                int oldCursorLeftLimit = InternalContext.CursorLeftPosLimit;
-                InternalContext.CursorLeftPosLimit = newCursorLeftLimit;
-                if (oldCursorLeftLimit != newCursorLeftLimit)
-                    widthChange = true;
-
+                bool needCheckBufUpdate = false;
                 while (Console.KeyAvailable) {
                     ConsoleKeyInfo k = Console.ReadKey(true);
 
@@ -245,11 +234,10 @@ namespace ConsoleInteractive {
                     }
                 }
 
-                if (widthChange || needCheckBufUpdate)
-                    ConsoleBuffer.RedrawInputArea(WidthChange: widthChange);
-
-                if (needCheckBufUpdate)
+                if (needCheckBufUpdate) {
+                    ConsoleBuffer.RedrawInputArea();
                     CheckInputBufferUpdate();
+                }
             }
             InternalContext.BufferInitialized = false;
         }

@@ -339,7 +339,7 @@ namespace ConsoleInteractive {
                 BufferPosition = UserInputBuffer.Length;
         }
 
-        internal static void RedrawInputArea(bool RedrawAll = false, bool WidthChange = false) {
+        internal static void RedrawInputArea(bool RedrawAll = false) {
             if (InternalContext.SuppressInput)
                 return;
 
