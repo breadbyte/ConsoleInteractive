@@ -6,9 +6,11 @@ using Wcwidth;
 
 namespace ConsoleInteractive {
     public static class ConsoleSuggestion {
-        public const int MaxSuggestionCount = 6, MaxSuggestionLength = 30;
-
         public static bool EnableColor { get; set; } = true;
+
+        public static int MaxSuggestionCount = 6, MaxSuggestionLength = 30;
+
+        public const int MaxValueOfMaxSuggestionCount = 32;
 
         private static bool InUse = false;
 
@@ -22,6 +24,113 @@ namespace ConsoleInteractive {
 
         private static Suggestion[] Suggestions = Array.Empty<Suggestion>();
 
+        public static void UpdateSuggestions(Suggestion[] Suggestions, Tuple<int, int> range) {
+            if (Console.IsOutputRedirected) {
+                ClearSuggestions();
+                return;
+            }
+
+            int maxLength = 0;
+            foreach (Suggestion sug in Suggestions)
+                maxLength = Math.Max(maxLength,
+                    Math.Min(MaxSuggestionLength, sug.ShortText.Length +
+                        (sug.TooltipWidth == 0 ? 0 : (sug.TooltipWidth + 1))));
+
+            if (Suggestions.Length == 0 || maxLength == 0) {
+                ClearSuggestions();
+                return;
+            }
+
+            if (Console.BufferWidth < maxLength) {
+                ClearSuggestions();
+                return;
+            }
+
+            lock (InternalContext.WriteLock) {
+                if (InUse && CheckIfNeedClear(Suggestions, range, maxLength))
+                    DrawHelper.ClearSuggestionPopup();
+
+                ConsoleSuggestion.Suggestions = Suggestions;
+
+                TargetTextRange = range;
+                StartIndex = range.Item1 - 1;
+
+                PopupWidth = maxLength + 2;
+
+                ChoosenIndex = 0;
+
+                ViewTop = 0;
+                ViewBottom = Math.Min(Suggestions.Length, MaxSuggestionCount);
+
+                if (!Hide) {
+                    InUse = true;
+                    DrawHelper.DrawSuggestionPopup();
+                }
+
+                AlreadyTriggerTab = false;
+                LastKeyIsTab = false;
+            }
+        }
+
+        public static void ClearSuggestions() {
+            if (InUse) {
+                lock (InternalContext.WriteLock) {
+                    InUse = false;
+                    DrawHelper.ClearSuggestionPopup();
+                }
+            } else if (Hide) {
+                HideAndClear = true;
+            }
+        }
+
+        public static int SetMaxSuggestionCount(int count) {
+            if (count < 1) count = 1;
+            if (count > MaxValueOfMaxSuggestionCount) count = MaxValueOfMaxSuggestionCount;
+            MaxSuggestionCount = count;
+            return count;
+        }
+
+        public static int SetMaxSuggestionLength(int length) {
+            if (length < 4) length = 4;
+            MaxSuggestionLength = length;
+            return length;
+        }
+
+        public static void SetColors(string? Normal = null,
+                                     string? NormalBg = null,
+                                     string? Highlight = null,
+                                     string? HighlightBg = null,
+                                     string? Tooltip = null,
+                                     string? TooltipHighlight = null,
+                                     string? Arrow = null) {
+            Normal = StringToColorCode(Normal, false);
+            if (!string.IsNullOrEmpty(Normal))
+                DrawHelper.NormalColorCode = Normal;
+
+            NormalBg = StringToColorCode(NormalBg, true);
+            if (!string.IsNullOrEmpty(NormalBg))
+                DrawHelper.NormalBgColorCode = NormalBg;
+
+            Highlight = StringToColorCode(Highlight, false);
+            if (!string.IsNullOrEmpty(Highlight))
+                DrawHelper.HighlightColorCode = Highlight;
+
+            HighlightBg = StringToColorCode(HighlightBg, true);
+            if (!string.IsNullOrEmpty(HighlightBg))
+                DrawHelper.HighlightBgColorCode = HighlightBg;
+
+            Tooltip = StringToColorCode(Tooltip, false);
+            if (!string.IsNullOrEmpty(Tooltip))
+                DrawHelper.TooltipColorCode = Tooltip;
+
+            TooltipHighlight = StringToColorCode(TooltipHighlight, false);
+            if (!string.IsNullOrEmpty(TooltipHighlight))
+                DrawHelper.HighlightTooltipColorCode = TooltipHighlight;
+
+            Arrow = StringToColorCode(Arrow, false);
+            if (!string.IsNullOrEmpty(Arrow))
+                DrawHelper.ArrowColorCode = Arrow;
+        }
 
         internal static void BeforeWrite(string message, int linesAdded) {
             if (InUse) DrawHelper.ClearSuggestionPopup(linesAdded);
@@ -149,65 +258,6 @@ namespace ConsoleInteractive {
             return false;
         }
 
-        public static void UpdateSuggestions(Suggestion[] Suggestions, Tuple<int, int> range) {
-            if (Console.IsOutputRedirected) {
-                ClearSuggestions();
-                return;
-            }
-
-            int maxLength = 0;
-            foreach (Suggestion sug in Suggestions)
-                maxLength = Math.Max(maxLength,
-                    Math.Min(MaxSuggestionLength, sug.ShortText.Length +
-                        (sug.TooltipWidth == 0 ? 0 : (sug.TooltipWidth + 1))));
-
-            if (Suggestions.Length == 0 || maxLength == 0) {
-                ClearSuggestions();
-                return;
-            }
-
-            if (Console.BufferWidth < maxLength) {
-                ClearSuggestions();
-                return;
-            }
-
-            lock (InternalContext.WriteLock) {
-                if (InUse && CheckIfNeedClear(Suggestions, range, maxLength))
-                    DrawHelper.ClearSuggestionPopup();
-
-                ConsoleSuggestion.Suggestions = Suggestions;
-
-                TargetTextRange = range;
-                StartIndex = range.Item1 - 1;
-
-                PopupWidth = maxLength + 2;
-
-                ChoosenIndex = 0;
-
-                ViewTop = 0;
-                ViewBottom = Math.Min(Suggestions.Length, MaxSuggestionCount);
-
-                if (!Hide) {
-                    InUse = true;
-                    DrawHelper.DrawSuggestionPopup();
-                }
-
-                AlreadyTriggerTab = false;
-                LastKeyIsTab = false;
-            }
-        }
-
-        public static void ClearSuggestions() {
-            if (InUse) {
-                lock (InternalContext.WriteLock) {
-                    InUse = false;
-                    DrawHelper.ClearSuggestionPopup();
-                }
-            } else if (Hide) {
-                HideAndClear = true;
-            }
-        }
-
         private static string? StringToColorCode(string? input, bool background) {
             if (string.IsNullOrWhiteSpace(input))
                 return null;
@@ -228,42 +278,6 @@ namespace ConsoleInteractive {
             } catch {
                 return null;
             }
-        }
-
-        public static void SetColors(string? Normal = null,
-                                     string? NormalBg = null,
-                                     string? Highlight = null,
-                                     string? HighlightBg = null,
-                                     string? Tooltip = null,
-                                     string? TooltipHighlight = null,
-                                     string? Arrow = null) {
-            Normal = StringToColorCode(Normal, false);
-            if (!string.IsNullOrEmpty(Normal))
-                DrawHelper.NormalColorCode = Normal;
-
-            NormalBg = StringToColorCode(NormalBg, true);
-            if (!string.IsNullOrEmpty(NormalBg))
-                DrawHelper.NormalBgColorCode = NormalBg;
-
-            Highlight = StringToColorCode(Highlight, false);
-            if (!string.IsNullOrEmpty(Highlight))
-                DrawHelper.HighlightColorCode = Highlight;
-
-            HighlightBg = StringToColorCode(HighlightBg, true);
-            if (!string.IsNullOrEmpty(HighlightBg))
-                DrawHelper.HighlightBgColorCode = HighlightBg;
-
-            Tooltip = StringToColorCode(Tooltip, false);
-            if (!string.IsNullOrEmpty(Tooltip))
-                DrawHelper.TooltipColorCode = Tooltip;
-
-            TooltipHighlight = StringToColorCode(TooltipHighlight, false);
-            if (!string.IsNullOrEmpty(TooltipHighlight))
-                DrawHelper.HighlightTooltipColorCode = TooltipHighlight;
-
-            Arrow = StringToColorCode(Arrow, false);
-            if (!string.IsNullOrEmpty(Arrow))
-                DrawHelper.ArrowColorCode = Arrow;
         }
 
         public class Suggestion {
@@ -325,13 +339,14 @@ namespace ConsoleInteractive {
             internal const string ResetColorCode = "\u001b[0m";
 
             private static int LastDrawStartPos = -1;
-            private static readonly BgMessageBuffer[] BgBuffer = new BgMessageBuffer[MaxSuggestionCount];
+            private static readonly BgMessageBuffer[] BgBuffer = new BgMessageBuffer[MaxValueOfMaxSuggestionCount];
 
             internal static void DrawSuggestionPopup(bool refreshMsgBuf = true, int bufWidth = -1) {
                 BgMessageBuffer[] messageBuffers = Array.Empty<BgMessageBuffer>();
                 int curBufIdx = -1, nextMessageIdx = 0;
                 lock (InternalContext.WriteLock) {
                     if (bufWidth == -1) bufWidth = Console.BufferWidth;
+                    if (PopupWidth > bufWidth) return;
                     (int left, int top) = Console.GetCursorPosition();
                     LastDrawStartPos = GetDrawStartPos(bufWidth);
                     InternalContext.SetCursorVisible(false);
@@ -353,7 +368,7 @@ namespace ConsoleInteractive {
             }
 
             internal static void ClearSuggestionPopup(int linesAdded = 0, int bufWidth = -1) {
-                int DisplaySuggestionsCnt = Math.Min(MaxSuggestionCount, Suggestions.Length); // Todo: head
+                int DisplaySuggestionsCnt = Math.Min(MaxSuggestionCount, Suggestions.Length);
                 lock (InternalContext.WriteLock) {
                     if (bufWidth == -1) bufWidth = Console.BufferWidth;
                     int drawStartPos = GetDrawStartPos(bufWidth);
@@ -603,13 +618,13 @@ namespace ConsoleInteractive {
             private static class RecentMessageHandler {
                 private static int Count = 0, Index = 0;
 
-                private static readonly RecentMessage[] Messages = new RecentMessage[MaxSuggestionCount];
+                private static readonly RecentMessage[] Messages = new RecentMessage[MaxValueOfMaxSuggestionCount];
 
                 internal static void AddMessage(string message) {
                     string[] lines = message.Split('\n');
-                    int startIdx = Math.Max(0, lines.Length - MaxSuggestionCount);
+                    int startIdx = Math.Max(0, lines.Length - MaxValueOfMaxSuggestionCount);
                     for (int i = startIdx; i < lines.Length; i++) {
-                        Index = Count < MaxSuggestionCount ? Count++ : (Index + 1) % MaxSuggestionCount;
+                        Index = Count < MaxValueOfMaxSuggestionCount ? Count++ : (Index + 1) % MaxValueOfMaxSuggestionCount;
                         Messages[Index] = new(lines[i]);
                     }
                 }
@@ -617,7 +632,7 @@ namespace ConsoleInteractive {
                 internal static RecentMessage? GetRecentMessage(int index) {
                     if (index >= Count)
                         return null;
-                    RecentMessage message = Messages[(MaxSuggestionCount + Index - index) % MaxSuggestionCount];
+                    RecentMessage message = Messages[(MaxValueOfMaxSuggestionCount + Index - index) % MaxValueOfMaxSuggestionCount];
                     message.ParseColorCode();
                     return message;
                 }
