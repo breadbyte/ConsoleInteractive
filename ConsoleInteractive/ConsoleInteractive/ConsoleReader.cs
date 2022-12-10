@@ -114,7 +114,6 @@ namespace ConsoleInteractive {
                     int charInt;
                     while ((charInt = Console.In.Read()) != -1) {
                         char c = (char)charInt;
-                        ConsoleWriter.WriteLine("char = " + charInt);
                         if (c == '\n') {
                             OnEnter();
                             if (token.IsCancellationRequested) return;
