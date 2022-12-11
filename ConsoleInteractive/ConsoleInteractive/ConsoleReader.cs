@@ -4,6 +4,8 @@ using System.Threading;
 
 namespace ConsoleInteractive {
     public static class ConsoleReader {
+        public static bool DisplayUesrInput { get; set; } = true;
+
         /// <summary>
         /// Invoked when a message is received.
         /// </summary>

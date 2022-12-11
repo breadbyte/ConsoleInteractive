@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Text.RegularExpressions;
-using System.Threading;
 
 namespace ConsoleInteractive {
     internal static class InternalContext {

@@ -353,7 +353,7 @@ namespace ConsoleInteractive {
             if (InternalContext.SuppressInput)
                 return;
 
-            if (Console.IsOutputRedirected)
+            if (Console.IsOutputRedirected || !ConsoleReader.DisplayUesrInput)
                 return;
 
             StringBuilder sb = new(Console.BufferWidth);
@@ -370,8 +370,8 @@ namespace ConsoleInteractive {
                     if (BufferPosition != UserInputBuffer.Length)
                         BufferOutputAnchor += (UserInputBuffer[BufferOutputAnchor + 1] == '\0') ? 2 : 1;
                 } else if (BufferPosition == BufferOutputAnchor + bufMaxLen - 1
-                        && UserInputBuffer.Length > BufferPosition + 1
-                        && UserInputBuffer[BufferPosition + 1] == '\0') {
+                          && UserInputBuffer.Length > BufferPosition + 1
+                          && UserInputBuffer[BufferPosition + 1] == '\0') {
                     BufferOutputAnchor += 2;
                 } else if (UserInputBuffer.Length > 0 && UserInputBuffer[BufferOutputAnchor] == '\0') {
                     ++BufferOutputAnchor;
