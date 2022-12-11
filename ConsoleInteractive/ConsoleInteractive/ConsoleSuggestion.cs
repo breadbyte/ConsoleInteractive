@@ -7,6 +7,7 @@ using Wcwidth;
 namespace ConsoleInteractive {
     public static class ConsoleSuggestion {
         public static bool EnableColor { get; set; } = true;
+        public static bool UseBasicArrow { get; set; } = false;
 
         public static int MaxSuggestionCount = 6, MaxSuggestionLength = 30;
 
@@ -304,8 +305,8 @@ namespace ConsoleInteractive {
             }
 
             internal string GetShortTooltip(int widthLimit) {
+                if (widthLimit <= 2) return new string('.', widthLimit);
                 widthLimit -= 2;
-                if (widthLimit <= 0) return string.Empty;
 
                 if (_cache != null && _cache.Item1 == widthLimit)
                     return _cache.Item2;
@@ -334,7 +335,7 @@ namespace ConsoleInteractive {
             internal static string TooltipColorCode = "\u001b[38;2;125;211;252m";         // Sky    30%  (#7dd3fc)
             internal static string HighlightTooltipColorCode = "\u001b[38;2;59;130;246m"; // Blue   50%  (#3b82f6)
 
-            internal static string ArrowColorCode = "\u001b[38;2;209;213;219m";           // Gray   30%  (#d1d5db)
+            internal static string ArrowColorCode = "\u001b[38;2;156;163;175m";           // Gray   40%  (#9ca3af)
 
             internal const string ResetColorCode = "\u001b[0m";
 
@@ -428,9 +429,9 @@ namespace ConsoleInteractive {
 
                 sb.Append(ArrowColorCode);
                 if (index == ViewTop && ViewTop != 0)
-                    sb.Append('↑');
+                    sb.Append(UseBasicArrow ? '^' : '↑');
                 else if (index + 1 == ViewBottom && ViewBottom != Suggestions.Length)
-                    sb.Append('↓');
+                    sb.Append(UseBasicArrow ? 'v' : '↓');
                 else if (index == ChoosenIndex)
                     sb.Append('>');
                 else
@@ -475,9 +476,9 @@ namespace ConsoleInteractive {
 
                 sb.Append(ArrowColorCode);
                 if (index == ViewTop && ViewTop != 0)
-                    sb.Append('↑');
+                    sb.Append(UseBasicArrow ? '^' : '↑');
                 else if (index + 1 == ViewBottom && ViewBottom != Suggestions.Length)
-                    sb.Append('↓');
+                    sb.Append(UseBasicArrow ? 'v' : '↓');
                 else if (index == ChoosenIndex)
                     sb.Append('<');
                 else

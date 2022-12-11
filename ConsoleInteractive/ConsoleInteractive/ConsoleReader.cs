@@ -84,6 +84,7 @@ namespace ConsoleInteractive {
             var bufferString = string.Empty;
 
             BeginReadThread(new CancellationTokenSource());
+            ConsoleBuffer.Init();
             MessageReceived += (sender, s) => {
                 bufferString = s;
                 autoEvent.Set();

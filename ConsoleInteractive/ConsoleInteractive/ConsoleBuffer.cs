@@ -108,6 +108,8 @@ namespace ConsoleInteractive {
         /// Initializes the ConsoleBuffer. Required to be called before using the ConsoleBuffer.
         /// </summary>
         internal static void Init() {
+            BufferPosition = 0;
+            lastInputArea = string.Empty;
             RedrawInputArea();
             InternalContext.BufferInitialized = true;
         }
