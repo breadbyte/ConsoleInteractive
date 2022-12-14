@@ -61,7 +61,7 @@ namespace ConsoleInteractive {
      * - Attempting to decrement further than the Console Width does nothing.
      *
      */
-    internal static class ConsoleBuffer {
+    public static class ConsoleBuffer {
         internal static StringBuilder UserInputBuffer = new();
 
         /// <summary>
@@ -423,10 +423,17 @@ namespace ConsoleInteractive {
 
 
         private static volatile int BufferBackreadPos = 0;
-        private const int BackreadBufferLimit = 32;
+        private static int BackreadBufferLimit = 32;
         internal static List<string> BackreadBuffer = new(BackreadBufferLimit + 1);
         internal static string UserInputBufferCopy = string.Empty;
         internal static bool isCurrentBufferCopied;
+
+        public static int SetBackreadBufferLimit(int limit) {
+            if (limit < 1)
+                limit = 1;
+            BackreadBufferLimit = limit;
+            return limit;
+        }
 
         public static void ClearBackreadBuffer() {
             lock (InternalContext.BackreadBufferLock) {
@@ -492,8 +499,9 @@ namespace ConsoleInteractive {
             lock (InternalContext.BackreadBufferLock) {
                 if (!string.IsNullOrWhiteSpace(message) && (BackreadBuffer.Count == 0 || message != BackreadBuffer[^1])) {
                     BackreadBuffer.Add(message);
-                    if (BackreadBuffer.Count > BackreadBufferLimit)
-                        BackreadBuffer.RemoveAt(0);
+                    int removeCount = BackreadBuffer.Count - BackreadBufferLimit;
+                    if (removeCount > 0)
+                        BackreadBuffer.RemoveRange(0, removeCount);
                 }
                 Interlocked.Exchange(ref BufferBackreadPos, BackreadBuffer.Count);
             }

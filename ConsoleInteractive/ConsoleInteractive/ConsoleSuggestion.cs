@@ -7,6 +7,7 @@ using Wcwidth;
 namespace ConsoleInteractive {
     public static class ConsoleSuggestion {
         public static bool EnableColor { get; set; } = true;
+        public static bool Enable24bitColor { get; set; } = true;
         public static bool UseBasicArrow { get; set; } = false;
 
         public static int MaxSuggestionCount = 6, MaxSuggestionLength = 30;
@@ -339,6 +340,10 @@ namespace ConsoleInteractive {
 
             internal const string ResetColorCode = "\u001b[0m";
 
+            private enum ColorType { Reset, Normal, NormalBg, Highlight, HighlightBg, Tooltip, HighlightTooltip, Arrow };
+
+            private static string LastColorFg = ResetColorCode, LastColorBg = ResetColorCode;
+
             private static int LastDrawStartPos = -1;
             private static readonly BgMessageBuffer[] BgBuffer = new BgMessageBuffer[MaxValueOfMaxSuggestionCount];
 
@@ -416,18 +421,81 @@ namespace ConsoleInteractive {
                 return Math.Max(0, Math.Min(bufWidth - PopupWidth, StartIndex + ConsoleBuffer.PrefixTotalLength - ConsoleBuffer.BufferOutputAnchor));
             }
 
+            private static string GetColorCode(ColorType color) {
+                if (!EnableColor || !ConsoleWriter.UseVT100ColorCode)
+                    return string.Empty;
+
+                if (color == ColorType.Reset) {
+                    LastColorBg = LastColorFg = ResetColorCode;
+                    return ResetColorCode;
+                }
+
+                bool foreground = true;
+                string result = string.Empty;
+                switch (color) {
+                    case ColorType.Normal:
+                        result = Enable24bitColor ? NormalColorCode : "\u001b[97m";
+                        break;
+                    case ColorType.NormalBg:
+                        foreground = false;
+                        result = Enable24bitColor ? NormalBgColorCode : "\u001b[100m";
+                        break;
+                    case ColorType.Highlight:
+                        result = Enable24bitColor ? HighlightColorCode : "\u001b[97m";
+                        break;
+                    case ColorType.HighlightBg:
+                        foreground = false;
+                        result = Enable24bitColor ? HighlightBgColorCode : "\u001b[43m";
+                        break;
+                    case ColorType.Tooltip:
+                        result = Enable24bitColor ? TooltipColorCode : "\u001b[96m";
+                        break;
+                    case ColorType.HighlightTooltip:
+                        result = Enable24bitColor ? HighlightTooltipColorCode : "\u001b[34m";
+                        break;
+                    case ColorType.Arrow:
+                        result = Enable24bitColor ? ArrowColorCode : "\u001b[37m";
+                        break;
+                }
+
+                if (foreground) {
+                    if (result == LastColorFg)
+                        return string.Empty;
+                    LastColorFg = result;
+                } else {
+                    if (result == LastColorBg)
+                        return string.Empty;
+                    LastColorBg = result;
+                }
+
+                return result;
+            }
+
             private static void DrawSingleSuggestionPopup(int index, BgMessageBuffer buf, int cursorTop) {
                 if (cursorTop < 0) return;
 
+                List<Tuple<int, bool, ConsoleColor>>? colors = ConsoleWriter.UseVT100ColorCode ? null : new();
+
                 StringBuilder sb = new(PopupWidth + 4 * NormalColorCode.Length);
 
-                sb.Append(ResetColorCode);
+                if (colors == null) {
+                    sb.Append(GetColorCode(ColorType.Reset));
+                } else {
+                    colors.Add(new(sb.Length, true, ConsoleColor.White));
+                    colors.Add(new(sb.Length, false, ConsoleColor.Black));
+                }
+
                 if (buf.StartSpace)
                     sb.Append(' ');
 
-                sb.Append(NormalBgColorCode);
+                if (colors == null) {
+                    sb.Append(GetColorCode(ColorType.NormalBg));
+                    sb.Append(GetColorCode(ColorType.Arrow));
+                } else {
+                    colors.Add(new(sb.Length, false, ConsoleColor.DarkGray));
+                    colors.Add(new(sb.Length, true, ConsoleColor.Gray));
+                }
 
-                sb.Append(ArrowColorCode);
                 if (index == ViewTop && ViewTop != 0)
                     sb.Append(UseBasicArrow ? '^' : '↑');
                 else if (index + 1 == ViewBottom && ViewBottom != Suggestions.Length)
@@ -438,12 +506,18 @@ namespace ConsoleInteractive {
                     sb.Append(' ');
 
                 if (index == ChoosenIndex) {
-                    if (HighlightColorCode != ArrowColorCode)
-                        sb.Append(HighlightColorCode);
-                    if (HighlightBgColorCode != NormalBgColorCode)
-                        sb.Append(HighlightBgColorCode);
+                    if (colors == null) {
+                        sb.Append(GetColorCode(ColorType.Highlight));
+                        sb.Append(GetColorCode(ColorType.HighlightBg));
+                    } else {
+                        colors.Add(new(sb.Length, true, ConsoleColor.White));
+                        colors.Add(new(sb.Length, false, ConsoleColor.DarkYellow));
+                    }
                 } else {
-                    sb.Append(NormalColorCode);
+                    if (colors == null)
+                        sb.Append(GetColorCode(ColorType.Normal));
+                    else
+                        colors.Add(new(sb.Length, true, ConsoleColor.White));
                 }
 
                 sb.Append(Suggestions[index].ShortText);
@@ -453,13 +527,10 @@ namespace ConsoleInteractive {
                     --lastSpace;
                     sb.Append(' ');
 
-                    if (index == ChoosenIndex) {
-                        if (HighlightColorCode != HighlightTooltipColorCode)
-                            sb.Append(HighlightTooltipColorCode);
-                    } else {
-                        if (NormalColorCode != TooltipColorCode)
-                            sb.Append(TooltipColorCode);
-                    }
+                    if (colors == null)
+                        sb.Append(GetColorCode((index == ChoosenIndex) ? ColorType.HighlightTooltip : ColorType.Tooltip));
+                    else
+                        colors.Add(new(sb.Length, true, (index == ChoosenIndex) ? ConsoleColor.DarkBlue : ConsoleColor.Cyan));
 
                     if (lastSpace >= Suggestions[index].TooltipWidth) {
                         sb.Append(' ', lastSpace - Suggestions[index].TooltipWidth);
@@ -471,10 +542,18 @@ namespace ConsoleInteractive {
                     sb.Append(new string(' ', lastSpace));
                 }
 
-                if (index == ChoosenIndex && HighlightBgColorCode != NormalBgColorCode)
-                    sb.Append(NormalBgColorCode);
+                if (index == ChoosenIndex) {
+                    if (colors == null)
+                        sb.Append(GetColorCode(ColorType.NormalBg));
+                    else
+                        colors.Add(new(sb.Length, false, ConsoleColor.DarkGray));
+                }
 
-                sb.Append(ArrowColorCode);
+                if (colors == null)
+                    sb.Append(GetColorCode(ColorType.Arrow));
+                else
+                    colors.Add(new(sb.Length, true, ConsoleColor.Gray));
+
                 if (index == ViewTop && ViewTop != 0)
                     sb.Append(UseBasicArrow ? '^' : '↑');
                 else if (index + 1 == ViewBottom && ViewBottom != Suggestions.Length)
@@ -484,17 +563,19 @@ namespace ConsoleInteractive {
                 else
                     sb.Append(' ');
 
-                sb.Append(ResetColorCode);
+                if (colors == null) {
+                    sb.Append(GetColorCode(ColorType.Reset));
+                } else {
+                    colors.Add(new(sb.Length, true, ConsoleColor.White));
+                    colors.Add(new(sb.Length, false, ConsoleColor.Black));
+                }
+
                 if (buf.EndSpace)
                     sb.Append(' ');
 
                 Console.SetCursorPosition(buf.CursorStart, cursorTop);
-                if (EnableColor)
-                    Console.Write(sb.ToString());
-                else if (ConsoleWriter.EnableColor)
-                    Console.Write(ResetColorCode + InternalWriter.ColorCodeRegex.Replace(sb.ToString(), string.Empty));
-                else
-                    Console.Write(InternalWriter.ColorCodeRegex.Replace(sb.ToString(), string.Empty));
+
+                InternalWriter.WriteConsole(sb.ToString(), colors);
             }
 
             private static void ClearSingleSuggestionPopup(BgMessageBuffer buf, int cursorTop) {
@@ -502,15 +583,20 @@ namespace ConsoleInteractive {
 
                 StringBuilder sb = new(PopupWidth + ResetColorCode.Length);
 
-                sb.Append(buf.Text);
-                sb.Append(ResetColorCode);
+                if (ConsoleWriter.EnableColor)
+                    sb.Append(buf.Text);
+                else
+                    sb.Append(InternalContext.VT100CodeRegex.Replace(buf.Text, string.Empty));
+
+                if (ConsoleWriter.EnableColor && ConsoleWriter.UseVT100ColorCode)
+                    sb.Append(ResetColorCode);
+
                 sb.Append(' ', buf.AfterTextSpace);
 
                 Console.SetCursorPosition(buf.CursorStart, cursorTop);
-                if (ConsoleWriter.EnableColor)
-                    Console.Write(sb.ToString());
-                else
-                    Console.Write(InternalWriter.ColorCodeRegex.Replace(sb.ToString(), string.Empty));
+                if (!ConsoleWriter.UseVT100ColorCode)
+                    Console.ForegroundColor = ConsoleColor.White;
+                Console.Write(sb.ToString());
             }
 
             private static BgMessageBuffer[] GetBgMessageBuffer(RecentMessageHandler.RecentMessage? msg, int start, int length, int bufWidth) {
