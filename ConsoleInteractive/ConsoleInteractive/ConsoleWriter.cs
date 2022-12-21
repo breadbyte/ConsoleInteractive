@@ -152,7 +152,7 @@ namespace ConsoleInteractive {
                     if (funkyMode)
                         sb.Append('\u2588', match.Index - curIndex);
                     else
-                        sb.Append(value.AsMemory(curIndex, match.Index - curIndex));
+                        sb.Append(value.AsSpan(curIndex, match.Index - curIndex));
                     curIndex = match.Index + match.Length;
 
                     string matchValue = match.Groups[1].Value;
@@ -203,7 +203,7 @@ namespace ConsoleInteractive {
                         }
                     }
                 }
-                sb.Append(value.AsMemory(curIndex, value.Length - curIndex));
+                sb.Append(value.AsSpan(curIndex, value.Length - curIndex));
                 if (matches[^1].Value[^1] != 'r')
                     sb.Append("\u001b[0m");
                 Write(sb.ToString());
@@ -213,7 +213,7 @@ namespace ConsoleInteractive {
                     if (funkyMode)
                         sb.Append('\u2588', match.Index - curIndex);
                     else
-                        sb.Append(value.AsMemory(curIndex, match.Index - curIndex));
+                        sb.Append(value.AsSpan(curIndex, match.Index - curIndex));
                     curIndex = match.Index + match.Length;
 
                     string matchValue = match.Groups[1].Value;
@@ -247,7 +247,7 @@ namespace ConsoleInteractive {
                             break;
                     }
                 }
-                sb.Append(value.AsMemory(curIndex, value.Length - curIndex));
+                sb.Append(value.AsSpan(curIndex, value.Length - curIndex));
                 if (matches[^1].Value[^1] != 'r')
                     colors.Add(new(sb.Length, true, ConsoleColor.White));
                 Write(sb.ToString(), colors);

@@ -48,13 +48,13 @@ namespace ConsoleInteractive {
         /// Starts a new Console Reader thread.
         /// </summary>
         /// <param name="cancellationToken">Exits from the reader thread when cancelled.</param>
-        public static void BeginReadThread(CancellationTokenSource cancellationTokenSource) {
+        public static void BeginReadThread() {
             lock (ThreadLock) {
                 if (_readerThread is { IsAlive: true }) {
                     throw new InvalidOperationException("Console Reader thread is already running.");
                 }
 
-                _cancellationTokenSource = cancellationTokenSource;
+                _cancellationTokenSource = new();
                 _readerThread = new Thread(new ParameterizedThreadStart(KeyListener!)) {
                     Name = "ConsoleInteractive.ConsoleReader Reader Thread"
                 };
@@ -76,25 +76,29 @@ namespace ConsoleInteractive {
                 ConsoleBuffer.ClearBackreadBuffer();
                 ConsoleBuffer.FlushBuffer();
                 ConsoleBuffer.ClearVisibleUserInput();
+
+                _readerThread!.Join();
             }
         }
 
         public static string RequestImmediateInput() {
-            AutoResetEvent autoEvent = new(false);
-            var bufferString = string.Empty;
+            lock (ThreadLock) {
+                AutoResetEvent autoEvent = new(false);
+                var bufferString = string.Empty;
 
-            BeginReadThread(new CancellationTokenSource());
-            ConsoleBuffer.Init();
-            MessageReceived += (sender, s) => {
-                bufferString = s;
-                autoEvent.Set();
-            };
+                BeginReadThread();
+                ConsoleBuffer.Init();
+                MessageReceived += (sender, s) =>
+                {
+                    bufferString = s;
+                    autoEvent.Set();
+                };
 
-            autoEvent.WaitOne();
-            StopReadThread();
-            _readerThread!.Join();
-            InternalContext.BufferInitialized = false;
-            return bufferString;
+                autoEvent.WaitOne();
+                StopReadThread();
+                InternalContext.BufferInitialized = false;
+                return bufferString;
+            }
         }
 
         /// <summary>
