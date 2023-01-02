@@ -72,12 +72,14 @@ namespace ConsoleInteractive {
                 }
 
                 _cancellationTokenSource?.Cancel();
+
+                try { _readerThread!.Join(); }
+                catch (Exception) { }
+
                 InternalContext.BufferInitialized = false;
                 ConsoleBuffer.ClearBackreadBuffer();
                 ConsoleBuffer.FlushBuffer();
                 ConsoleBuffer.ClearVisibleUserInput();
-
-                _readerThread!.Join();
             }
         }
 
