@@ -758,7 +758,10 @@ namespace ConsoleInteractive {
                             int index = match.Index - colorLen;
                             string code = match.Groups[0].Value;
                             if (code == ResetColorCode)
+                            {
+                                fgColor.Add(new(index, code));
                                 bgColor.Add(new(index, code));
+                            }
                             else if (IsForcegroundColorCode(code))
                                 fgColor.Add(new(index, code));
                             else if (IsBackgroundColorCode(code))
