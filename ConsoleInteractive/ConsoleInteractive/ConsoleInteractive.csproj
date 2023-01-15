@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
         <Title>ConsoleInteractive</Title>
@@ -9,13 +9,14 @@
         <PackageId>ConsoleInteractivePrompt</PackageId>
         <PackageLicenseUrl>https://github.com/breadbyte/ConsoleInteractive/blob/main/LICENSE</PackageLicenseUrl>
         <LangVersion>default</LangVersion>
-        <TargetFrameworks>net5.0;net6.0</TargetFrameworks>
+        <TargetFrameworks>NET7.0</TargetFrameworks>
         <OutputType>Library</OutputType>
         <PublishSingleFile>false</PublishSingleFile>
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="PInvoke.Kernel32" Version="0.7.104" />
+      <PackageReference Include="PInvoke.Kernel32" Version="0.7.124" />
+      <PackageReference Include="Wcwidth" Version="1.0.0" />
     </ItemGroup>
 
 </Project>
