@@ -96,7 +96,7 @@ namespace ConsoleInteractiveDemo {
             t2.Start();
             tF.Start();
             
-            ConsoleReader.BeginReadThread(cts);
+            ConsoleReader.BeginReadThread();
             ConsoleReader.MessageReceived += (sender, s) => {
                 if (s.Equals("cancel"))
                     ConsoleReader.StopReadThread();

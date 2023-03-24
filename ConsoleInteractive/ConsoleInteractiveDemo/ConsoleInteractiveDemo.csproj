@@ -5,11 +5,10 @@
         <IsPackable>false</IsPackable>
         <Nullable>enable</Nullable>
         <LangVersion>default</LangVersion>
-        <TargetFrameworks>net5.0;net6.0</TargetFrameworks>
+        <TargetFramework>net7.0</TargetFramework>
     </PropertyGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\ConsoleInteractive.csproj" />
       <ProjectReference Include="..\ConsoleInteractive\ConsoleInteractive.csproj" />
     </ItemGroup>
 
