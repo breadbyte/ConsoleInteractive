@@ -1,14 +1,11 @@
-﻿using System;
-using System.Diagnostics;
-using System.Linq;
-using System.Reflection;
-using System.Threading;
+﻿using System.Threading;
 using ConsoleInteractive;
 using ConsoleInteractive.Extensions;
 
 namespace ConsoleInteractiveDemo {
     class Program {
         static void Main(string[] args) {
+            CancellationTokenSource cts = new();
             ConsoleWriter.Init();
             
             FormattedStringBuilder sb1 = new();
@@ -142,11 +139,12 @@ namespace ConsoleInteractiveDemo {
                 //ConsoleWriter.WriteLine(f);
                 ConsoleWriter.WriteLine(sb2);
             })) {IsBackground = true};
-
-            //t1.Start();
-            //t2.Start();
-
-            ConsoleReader.BeginReadThread(cts);
+            
+            t1.Start();
+            t2.Start();
+            tF.Start();
+            
+            ConsoleReader.BeginReadThread();
             ConsoleReader.MessageReceived += (sender, s) => {
                 if (s.Equals("cancel"))
                     ConsoleReader.StopReadThread();
