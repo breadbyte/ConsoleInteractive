@@ -97,7 +97,12 @@ namespace ConsoleInteractive {
         /// <summary>
         /// Console width is actually 0 indexed, so we need to subtract 1 from the width.
         /// </summary>
-        internal static int UserInputBufferMaxLength { get { return Console.BufferWidth - 1 - PrefixTotalLength; } }
+        internal static int UserInputBufferMaxLength {
+            get {
+                int result = Console.BufferWidth - 1 - PrefixTotalLength;
+                return result > 0 ? result : 0;
+            }
+        }
 
         /// <summary>
         /// Stores the contents of the input area at the time of the last call to redraw.
