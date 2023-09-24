@@ -9,11 +9,15 @@ namespace ConsoleInteractive {
     public static class ConsoleWriter {
         public static bool EnableColor { get; set; } = true;
         public static bool UseVT100ColorCode { get; set; } = false;
+        private static bool InDocker { get { return Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER") == "true"; } }
+        private static IWriter BackendWriter = new InternalWriter();
 
         public static void Init() {
             SetWindowsConsoleAnsi();
             if (!Console.IsOutputRedirected)
                 Console.Clear();
+            if (InDocker)
+                BackendWriter = new FallbackWriter();
         }
 
         private static void SetWindowsConsoleAnsi() {
@@ -24,20 +28,36 @@ namespace ConsoleInteractive {
         }
 
         public static void WriteLine(string value) {
-            InternalWriter.WriteLine(value);
+            BackendWriter.WriteLine(value);
         }
 
         public static void WriteLineFormatted(string value) {
-            InternalWriter.WriteLineFormatted(value);
+            BackendWriter.WriteLineFormatted(value);
         }
     }
 
-    internal static class InternalWriter {
+    internal interface IWriter {
+        public abstract void WriteLine(string value);
+
+        public abstract void WriteLineFormatted(string value);
+    }
+
+    internal class FallbackWriter : IWriter {
+        public void WriteLine(string value) {
+            Console.WriteLine(value);
+        }
+
+        public void WriteLineFormatted(string value) {
+            Console.WriteLine(value);
+        }
+    }
+
+    internal class InternalWriter : IWriter {
 
         /// <summary>
         /// Gets the number of lines and the width of the first line of the message.
         /// </summary>
-        private static Tuple<int, int> GetLineCountInTerminal(string value) {
+        private Tuple<int, int> GetLineCountInTerminal(string value) {
             if (Console.IsOutputRedirected)
                 return new(0, 0);
 
@@ -103,7 +123,7 @@ namespace ConsoleInteractive {
             }
         }
 
-        private static void Write(string value, List<Tuple<int, bool, ConsoleColor>>? colors = null) {
+        private void Write(string value, List<Tuple<int, bool, ConsoleColor>>? colors = null) {
             (int linesAdded, int firstLineLength) = GetLineCountInTerminal(value);
 
             lock (InternalContext.WriteLock) {
@@ -128,11 +148,11 @@ namespace ConsoleInteractive {
             }
         }
 
-        public static void WriteLine(string value) {
+        public void WriteLine(string value) {
             Write(value);
         }
 
-        public static void WriteLineFormatted(string value) {
+        public void WriteLineFormatted(string value) {
             if (!ConsoleWriter.EnableColor) {
                 Write(InternalContext.FormatRegex.Replace(value, string.Empty));
                 return;
