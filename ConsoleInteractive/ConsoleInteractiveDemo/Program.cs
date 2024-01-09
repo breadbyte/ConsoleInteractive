@@ -1,4 +1,5 @@
-﻿using System.Threading;
+﻿using System;
+using System.Threading;
 using ConsoleInteractive;
 
 namespace ConsoleInteractiveDemo {
@@ -7,6 +8,9 @@ namespace ConsoleInteractiveDemo {
             CancellationTokenSource cts = new();
             ConsoleWriter.Init();
             
+            ConsoleInteractive.Impl.Terminal.TerminalReader tr = new();
+            tr.ReaderThread = Thread.CurrentThread;
+
             ConsoleWriter.WriteLine("type cancel to exit the application.");
             var t1 = new Thread(new ThreadStart(() => {
                 ConsoleWriter.WriteLine("[T1] Hello World!");

@@ -3,8 +3,12 @@ using System.Text.RegularExpressions;
 
 namespace ConsoleInteractive {
     internal static partial class InternalContext {
+        internal static readonly object WriterLock = new();
+        internal static readonly object ReaderThreadLock = new();
+        internal static readonly object HistoryLock = new();
+        internal static readonly object SuggestionLock = new();
+        
         internal static object WriteLock = new();
-        internal static object UserInputBufferLock = new();
         internal static object BackreadBufferLock = new();
 
         internal readonly static Regex VT100CodeRegex = GetVT100CodeRegex();
@@ -12,6 +16,7 @@ namespace ConsoleInteractive {
 
         internal static volatile bool _suppressInput = false;
         internal static volatile bool BufferInitialized = false;
+        internal static volatile bool DirtyBuffer = true;
 
         internal static bool SuppressInput {
             get { return _suppressInput; }

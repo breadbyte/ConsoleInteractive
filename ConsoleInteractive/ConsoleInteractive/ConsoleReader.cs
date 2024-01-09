@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Threading;
+using ConsoleInteractive.Interface;
+using ConsoleInteractive.Interface.Abstract;
 
 namespace ConsoleInteractive {
     public static class ConsoleReader {
@@ -23,7 +25,7 @@ namespace ConsoleInteractive {
         }
 
         public static Buffer GetBufferContent() {
-            lock (InternalContext.UserInputBufferLock)
+            lock (InputBuffer.UserInputBufferLock)
                 return new Buffer(ConsoleBuffer.UserInputBuffer.ToString()!, ConsoleBuffer.BufferPosition);
         }
 
@@ -41,65 +43,6 @@ namespace ConsoleInteractive {
                     if (InputBuffer.Text[i] == '\0')
                         --cursorPos;
                 OnInputChange?.Invoke(null, new(InputBuffer.Text.Replace("\0", string.Empty), cursorPos));
-            }
-        }
-
-        /// <summary>
-        /// Starts a new Console Reader thread.
-        /// </summary>
-        /// <param name="cancellationToken">Exits from the reader thread when cancelled.</param>
-        public static void BeginReadThread() {
-            lock (ThreadLock) {
-                if (_readerThread is { IsAlive: true }) {
-                    throw new InvalidOperationException("Console Reader thread is already running.");
-                }
-
-                _cancellationTokenSource = new();
-                _readerThread = new Thread(new ParameterizedThreadStart(KeyListener!)) {
-                    Name = "ConsoleInteractive.ConsoleReader Reader Thread"
-                };
-                _readerThread.Start(_cancellationTokenSource.Token);
-            }
-        }
-
-        /// <summary>
-        /// Stops an existing Console Reader thread, if any.
-        /// </summary>
-        public static void StopReadThread() {
-            lock (ThreadLock) {
-                if (_readerThread is { IsAlive: false }) {
-                    return;
-                }
-
-                _cancellationTokenSource?.Cancel();
-
-                try { _readerThread!.Join(); }
-                catch (Exception) { }
-
-                InternalContext.BufferInitialized = false;
-                ConsoleBuffer.ClearBackreadBuffer();
-                ConsoleBuffer.FlushBuffer();
-                ConsoleBuffer.ClearVisibleUserInput();
-            }
-        }
-
-        public static string RequestImmediateInput() {
-            lock (ThreadLock) {
-                AutoResetEvent autoEvent = new(false);
-                var bufferString = string.Empty;
-
-                BeginReadThread();
-                ConsoleBuffer.Init();
-                MessageReceived += (sender, s) =>
-                {
-                    bufferString = s;
-                    autoEvent.Set();
-                };
-
-                autoEvent.WaitOne();
-                StopReadThread();
-                InternalContext.BufferInitialized = false;
-                return bufferString;
             }
         }
 
@@ -275,16 +218,6 @@ namespace ConsoleInteractive {
             var input = ConsoleBuffer.FlushBuffer();
             ConsoleBuffer.AddToBackreadBuffer(input);
             MessageReceived?.Invoke(null, input.Replace("\0", string.Empty));
-        }
-
-        public record Buffer {
-            public string Text { get; init; }
-            public int CursorPosition { get; init; }
-
-            public Buffer(string text, int cursorPosition) {
-                Text = text;
-                CursorPosition = cursorPosition;
-            }
         }
     }
 }

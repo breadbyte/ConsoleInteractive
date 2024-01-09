@@ -11,6 +11,10 @@ namespace ConsoleInteractive {
         public static bool UseVT100ColorCode { get; set; } = false;
 
         public static void Init() {
+            // Set the console encoding to UTF-8.
+            Console.OutputEncoding = Console.InputEncoding = Encoding.UTF8;
+            
+            // Enable ANSI escape codes on Windows.
             SetWindowsConsoleAnsi();
             if (!Console.IsOutputRedirected)
                 Console.Clear();
@@ -61,7 +65,7 @@ namespace ConsoleInteractive {
                     ++lineCnt;
                     cursorPos = 0;
                 }
-
+                
                 int width = Math.Max(0, UnicodeCalculator.GetWidth(c));
                 if (cursorPos + width > bufWidth) {
                     if (lineCnt == 0)

@@ -19,4 +19,12 @@
       <PackageReference Include="Wcwidth" Version="1.0.0" />
     </ItemGroup>
 
+
+
+
+    <ItemGroup>
+      <Folder Include="Impl\Terminal\Suggestion\" />
+      <Folder Include="Interface\Base\Output\" />
+    </ItemGroup>
+
 </Project>
