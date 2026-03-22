@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Text.RegularExpressions;
 
 namespace ConsoleInteractive {
@@ -13,6 +13,28 @@ namespace ConsoleInteractive {
         internal static volatile bool _suppressInput = false;
         internal static volatile bool BufferInitialized = false;
 
+        internal static readonly bool IsInteractiveConsole = DetectInteractiveConsole();
+
+        private static bool DetectInteractiveConsole() {
+            if (Console.IsInputRedirected || Console.IsOutputRedirected)
+                return false;
+            try {
+                _ = Console.BufferWidth;
+                _ = Console.KeyAvailable;
+                return true;
+            } catch {
+                return false;
+            }
+        }
+
+        internal static int SafeBufferWidth {
+            get {
+                if (!IsInteractiveConsole) return 120;
+                try { return Console.BufferWidth; }
+                catch { return 120; }
+            }
+        }
+
         internal static bool SuppressInput {
             get { return _suppressInput; }
             set {
@@ -26,9 +48,11 @@ namespace ConsoleInteractive {
         }
 
         internal static void SetCursorVisible(bool visible) {
+            if (!IsInteractiveConsole) return;
+
             // It's useful to have the cursor visible in debug situations
             #if !DEBUG
-            Console.CursorVisible = visible;
+            try { Console.CursorVisible = visible; } catch { }
             #endif
         }
 

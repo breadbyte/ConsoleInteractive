@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading;
@@ -99,7 +99,7 @@ namespace ConsoleInteractive {
         /// </summary>
         internal static int UserInputBufferMaxLength {
             get {
-                int result = Console.BufferWidth - 1 - PrefixTotalLength;
+                int result = InternalContext.SafeBufferWidth - 1 - PrefixTotalLength;
                 return result > 0 ? result : 0;
             }
         }
@@ -326,13 +326,16 @@ namespace ConsoleInteractive {
         /// Does not clear the internal buffer.
         /// </summary>
         internal static void ClearVisibleUserInput(int startPos = 0) {
+            if (!InternalContext.IsInteractiveConsole) return;
             lock (InternalContext.WriteLock) {
-                if (startPos < Console.BufferWidth) {
-                    Console.CursorLeft = startPos;
-                    Console.Write(new string(' ', Math.Max(0,
-                        PrefixTotalLength + Math.Min(UserInputBuffer.Length - BufferOutputAnchor, UserInputBufferMaxLength) - startPos)));
-                }
-                Console.CursorLeft = 0;
+                try {
+                    if (startPos < Console.BufferWidth) {
+                        Console.CursorLeft = startPos;
+                        Console.Write(new string(' ', Math.Max(0,
+                            PrefixTotalLength + Math.Min(UserInputBuffer.Length - BufferOutputAnchor, UserInputBufferMaxLength) - startPos)));
+                    }
+                    Console.CursorLeft = 0;
+                } catch { }
             }
         }
 
@@ -360,10 +363,10 @@ namespace ConsoleInteractive {
             if (InternalContext.SuppressInput)
                 return;
 
-            if (Console.IsOutputRedirected || !ConsoleReader.DisplayUesrInput)
+            if (!InternalContext.IsInteractiveConsole || Console.IsOutputRedirected || !ConsoleReader.DisplayUesrInput)
                 return;
 
-            StringBuilder sb = new(Console.BufferWidth);
+            StringBuilder sb = new(InternalContext.SafeBufferWidth);
             int bufMaxLen = UserInputBufferMaxLength;
 
             int leftCursorPos;
@@ -412,16 +415,19 @@ namespace ConsoleInteractive {
             }
 
             if (startIndex == sb.Length) {
-                lock (InternalContext.WriteLock)
-                    Console.CursorLeft = leftCursorPos;
+                lock (InternalContext.WriteLock) {
+                    try { Console.CursorLeft = leftCursorPos; } catch { }
+                }
             } else {
                 lock (InternalContext.WriteLock) {
-                    InternalContext.SetCursorVisible(false);
-                    Console.CursorLeft = startIndex;
-                    Console.Write(sb.ToString(startIndex, sb.Length - startIndex));
-                    if (leftCursorPos != sb.Length)
-                        Console.CursorLeft = leftCursorPos;
-                    InternalContext.SetCursorVisible(true);
+                    try {
+                        InternalContext.SetCursorVisible(false);
+                        Console.CursorLeft = startIndex;
+                        Console.Write(sb.ToString(startIndex, sb.Length - startIndex));
+                        if (leftCursorPos != sb.Length)
+                            Console.CursorLeft = leftCursorPos;
+                        InternalContext.SetCursorVisible(true);
+                    } catch { }
                 }
             }
         }

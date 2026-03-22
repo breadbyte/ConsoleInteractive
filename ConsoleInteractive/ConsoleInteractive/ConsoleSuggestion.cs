@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -27,7 +27,7 @@ namespace ConsoleInteractive {
         private static Suggestion[] Suggestions = Array.Empty<Suggestion>();
 
         public static void UpdateSuggestions(Suggestion[] Suggestions, Tuple<int, int> range) {
-            if (Console.IsOutputRedirected) {
+            if (Console.IsOutputRedirected || !InternalContext.IsInteractiveConsole) {
                 ClearSuggestions();
                 return;
             }
@@ -43,7 +43,7 @@ namespace ConsoleInteractive {
                 return;
             }
 
-            if (Console.BufferWidth < maxLength) {
+            if (InternalContext.SafeBufferWidth < maxLength) {
                 ClearSuggestions();
                 return;
             }
@@ -348,10 +348,11 @@ namespace ConsoleInteractive {
             private static readonly BgMessageBuffer[] BgBuffer = new BgMessageBuffer[MaxValueOfMaxSuggestionCount];
 
             internal static void DrawSuggestionPopup(bool refreshMsgBuf = true, int bufWidth = -1) {
+                if (!InternalContext.IsInteractiveConsole) return;
                 BgMessageBuffer[] messageBuffers = Array.Empty<BgMessageBuffer>();
                 int curBufIdx = -1, nextMessageIdx = 0;
                 lock (InternalContext.WriteLock) {
-                    if (bufWidth == -1) bufWidth = Console.BufferWidth;
+                    if (bufWidth == -1) bufWidth = InternalContext.SafeBufferWidth;
                     if (PopupWidth > bufWidth) return;
                     (int left, int top) = Console.GetCursorPosition();
                     LastDrawStartPos = GetDrawStartPos(bufWidth);
@@ -374,9 +375,10 @@ namespace ConsoleInteractive {
             }
 
             internal static void ClearSuggestionPopup(int linesAdded = 0, int bufWidth = -1) {
+                if (!InternalContext.IsInteractiveConsole) return;
                 int DisplaySuggestionsCnt = Math.Min(MaxSuggestionCount, Suggestions.Length);
                 lock (InternalContext.WriteLock) {
-                    if (bufWidth == -1) bufWidth = Console.BufferWidth;
+                    if (bufWidth == -1) bufWidth = InternalContext.SafeBufferWidth;
                     int drawStartPos = GetDrawStartPos(bufWidth);
                     (int left, int top) = Console.GetCursorPosition();
                     InternalContext.SetCursorVisible(false);
@@ -390,6 +392,7 @@ namespace ConsoleInteractive {
             }
 
             internal static void RedrawOnArrowKey(int offset) {
+                if (!InternalContext.IsInteractiveConsole) return;
                 lock (InternalContext.WriteLock) {
                     (int left, int top) = Console.GetCursorPosition();
                     InternalContext.SetCursorVisible(false);
@@ -404,8 +407,9 @@ namespace ConsoleInteractive {
             }
 
             internal static void RedrawOnTab() {
+                if (!InternalContext.IsInteractiveConsole) return;
                 lock (InternalContext.WriteLock) {
-                    int bufWidth = Console.BufferWidth;
+                    int bufWidth = InternalContext.SafeBufferWidth;
                     if (GetDrawStartPos(bufWidth) != LastDrawStartPos) {
                         ClearSuggestionPopup(bufWidth: bufWidth);
                         DrawSuggestionPopup(refreshMsgBuf: true, bufWidth: bufWidth);
