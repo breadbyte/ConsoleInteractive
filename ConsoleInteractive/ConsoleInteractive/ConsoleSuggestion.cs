@@ -617,13 +617,13 @@ namespace ConsoleInteractive {
 
                     while (cursorPos < start) {
                         if (charIndex < chars.Length) {
-                            int width = Math.Max(0, UnicodeCalculator.GetWidth(chars[charIndex]));
+                            int width = GetCharacterWidth(chars, charIndex, out int consumed);
                             if (cursorPos + width > start) {
                                 StartSpace = true;
                                 break;
                             }
                             cursorPos += width;
-                            ++charIndex;
+                            charIndex += consumed;
                         } else {
                             cursorPos = start;
                             break;
@@ -635,12 +635,12 @@ namespace ConsoleInteractive {
                     int end = start + length;
                     while (cursorPos < end) {
                         if (charIndex < chars.Length) {
-                            cursorPos += Math.Max(0, UnicodeCalculator.GetWidth(chars[charIndex]));
+                            cursorPos += GetCharacterWidth(chars, charIndex, out int consumed);
 
                             if (cursorPos > end)
                                 EndSpace = true;
 
-                            ++charIndex;
+                            charIndex += consumed;
                         } else {
                             int last = end - cursorPos;
                             cursorPos += last;
@@ -654,19 +654,14 @@ namespace ConsoleInteractive {
                     if (charStart < charEnd) {
                         StringBuilder sb = new();
 
-                        int bgIdx = GetLowerBoundColorCode(msg.ColorCodeBG, charStart);
-                        while (bgIdx < msg.ColorCodeBG.Length && msg.ColorCodeBG[bgIdx].Item1 < charStart)
-                            sb.Append(msg.ColorCodeBG[bgIdx++].Item2);
-
-                        int fgIdx = GetLowerBoundColorCode(msg.ColorCodeFG, charStart);
-                        while (fgIdx < msg.ColorCodeFG.Length && msg.ColorCodeFG[fgIdx].Item1 < charStart)
-                            sb.Append(msg.ColorCodeFG[fgIdx++].Item2);
+                        // Seed the style the covered slice starts in, then replay the codes inside it.
+                        int codeIdx = GetFirstCodeAfterReset(msg.Codes, charStart);
+                        while (codeIdx < msg.Codes.Length && msg.Codes[codeIdx].Item1 < charStart)
+                            sb.Append(msg.Codes[codeIdx++].Item2);
 
                         for (int i = charStart; i < charEnd; ++i) {
-                            while (bgIdx < msg.ColorCodeBG.Length && msg.ColorCodeBG[bgIdx].Item1 == i)
-                                sb.Append(msg.ColorCodeBG[bgIdx++].Item2);
-                            while (fgIdx < msg.ColorCodeFG.Length && msg.ColorCodeFG[fgIdx].Item1 == i)
-                                sb.Append(msg.ColorCodeFG[fgIdx++].Item2);
+                            while (codeIdx < msg.Codes.Length && msg.Codes[codeIdx].Item1 == i)
+                                sb.Append(msg.Codes[codeIdx++].Item2);
                             sb.Append(chars[i]);
                         }
                         Text = sb.ToString();
@@ -676,11 +671,11 @@ namespace ConsoleInteractive {
 
                     while (cursorPos <= bufWidth) {
                         if (charIndex < chars.Length) {
-                            int width = Math.Max(0, UnicodeCalculator.GetWidth(chars[charIndex]));
+                            int width = GetCharacterWidth(chars, charIndex, out int consumed);
                             if (cursorPos + width > bufWidth)
                                 break;
                             cursorPos += width;
-                            ++charIndex;
+                            charIndex += consumed;
                         } else {
                             break;
                         }
@@ -690,7 +685,55 @@ namespace ConsoleInteractive {
                 return buffers.ToArray();
             }
 
-            private static int GetLowerBoundColorCode(Tuple<int, string>[] ColorCodes, int charStart) {
+            /// <summary>
+            /// The display width of the character at <paramref name="index"/>, and how many UTF-16 units it
+            /// occupies.
+            /// </summary>
+            /// <remarks>
+            /// A character outside the BMP is stored as a surrogate PAIR, and measuring the halves
+            /// separately is what split emoji across a popup edge: each half reports width 1, so a
+            /// two-column emoji measured two columns by accident while the walk was still free to stop
+            /// between the halves. The restored slice then began with a lone low surrogate, which is not a
+            /// character at all, and the terminal drew replacement glyphs. Wcwidth already has a Rune
+            /// overload; this just uses it.
+            /// </remarks>
+            private static int GetCharacterWidth(char[] chars, int index, out int consumed) {
+                if (char.IsHighSurrogate(chars[index]) && index + 1 < chars.Length && char.IsLowSurrogate(chars[index + 1])) {
+                    consumed = 2;
+                    return Math.Max(0, UnicodeCalculator.GetWidth(new Rune(chars[index], chars[index + 1])));
+                }
+
+                consumed = 1;
+                return Math.Max(0, UnicodeCalculator.GetWidth(chars[index]));
+            }
+
+            /// <summary>
+            /// The index of the first code that has to be replayed to reproduce the style in effect at
+            /// <paramref name="charStart"/>: everything from the last full reset at or before it.
+            /// </summary>
+            /// <remarks>
+            /// This used to seek the LAST code at or before the cut and replay only that, once per colour
+            /// list. That is correct only while a code REPLACES the whole style, which is true of a colour
+            /// and false of everything else: bold, italic, underline and strikethrough accumulate, so a run
+            /// that was "yellow and bold" needs both codes replayed and the old seek could produce only one.
+            /// Combined with the classifier below, which discarded any escape that was not purely a colour,
+            /// decorated text came back undecorated and text whose colour arrived in the same escape as its
+            /// decoration came back with no colour at all. A reset is the only point at which the style is
+            /// known from nothing, so replay starts there.
+            /// </remarks>
+            private static int GetFirstCodeAfterReset(Tuple<int, string>[] codes, int charStart) {
+                for (int i = GetLowerBound(codes, charStart); i >= 0; --i) {
+                    if (codes[i].Item1 <= charStart && codes[i].Item2 == ResetColorCode)
+                        return i;
+                }
+
+                return 0;
+            }
+
+            private static int GetLowerBound(Tuple<int, string>[] ColorCodes, int charStart) {
+                if (ColorCodes.Length == 0)
+                    return -1;
+
                 int left = 0, right = ColorCodes.Length - 1;
                 while (left < right) {
                     int mid = (left + right + 1) / 2;
@@ -728,18 +771,19 @@ namespace ConsoleInteractive {
                     private readonly static Regex ContralCharRegex = new(@"[\u0000-\u001F]", RegexOptions.Compiled);
                     private readonly static Regex EscapeCodeRegex = new(@"\u001B\[[\d;]+m", RegexOptions.Compiled);
 
-                    private readonly static Regex Fg3bitColorCode = new(@"^\u001B\[(?:3|9)[01234567]m$", RegexOptions.Compiled);
-                    private readonly static Regex Bg3bitColorCode = new(@"^\u001B\[(?:4|10)[01234567]m$", RegexOptions.Compiled);
-                    private readonly static Regex Fg8bitColorCode = new(@"^\u001B\[38;5;(?:1\d{2}|2[0-4]\d|[1-9]?\d|25[0-5])m$", RegexOptions.Compiled);
-                    private readonly static Regex Bg8bitColorCode = new(@"^\u001B\[48;5;(?:1\d{2}|2[0-4]\d|[1-9]?\d|25[0-5])m$", RegexOptions.Compiled);
-                    private readonly static Regex Fg24bitColorCode = new(@"^\u001B\[38;2(?:;(?:1\d{2}|2[0-4]\d|[1-9]?\d|25[0-5])){3}m$", RegexOptions.Compiled);
-                    private readonly static Regex Bg24bitColorCode = new(@"^\u001B\[48;2(?:;(?:1\d{2}|2[0-4]\d|[1-9]?\d|25[0-5])){3}m$", RegexOptions.Compiled);
-
                     bool Parsed = false;
 
-                    public Tuple<int, string>[] ColorCodeFG = Array.Empty<Tuple<int, string>>();
-
-                    public Tuple<int, string>[] ColorCodeBG = Array.Empty<Tuple<int, string>>();
+                    /// <summary>
+                    /// Every SGR escape in the line, in order, each with the index in <see cref="Message"/>
+                    /// of the character it takes effect at.
+                    /// </summary>
+                    /// <remarks>
+                    /// One ordered list, not a foreground list and a background list. The split existed to
+                    /// let the restore seed one code from each, which only works while a code replaces the
+                    /// whole style; decorations accumulate instead, so the restore replays a range and needs
+                    /// them interleaved in the order they were written.
+                    /// </remarks>
+                    public Tuple<int, string>[] Codes = Array.Empty<Tuple<int, string>>();
 
                     public string Message = string.Empty, RawMessage = string.Empty;
 
@@ -751,49 +795,25 @@ namespace ConsoleInteractive {
                         if (Parsed)
                             return;
 
-                        List<Tuple<int, string>> fgColor = new(), bgColor = new();
+                        // Every SGR escape is kept, not just the ones that name a colour. What used to
+                        // happen: an escape matching none of the six colour patterns was DISCARDED, so
+                        // ESC[1m (bold) and friends never reached the restore, and a writer that emits a
+                        // colour and a decoration as one sequence (ESC[38;2;255;255;85;1m, which is legal
+                        // and common) had that sequence thrown away whole, losing the colour too. Anything
+                        // the writer put on the line is style the restore has to reproduce; classifying it
+                        // was never the restore's job.
+                        List<Tuple<int, string>> codes = new();
                         MatchCollection matchs = EscapeCodeRegex.Matches(RawMessage);
                         int colorLen = 0;
                         foreach (Match match in matchs) {
-                            int index = match.Index - colorLen;
-                            string code = match.Groups[0].Value;
-                            if (code == ResetColorCode)
-                            {
-                                fgColor.Add(new(index, code));
-                                bgColor.Add(new(index, code));
-                            }
-                            else if (IsForcegroundColorCode(code))
-                                fgColor.Add(new(index, code));
-                            else if (IsBackgroundColorCode(code))
-                                bgColor.Add(new(index, code));
+                            codes.Add(new(match.Index - colorLen, match.Groups[0].Value));
                             colorLen += match.Length;
                         }
 
                         Message = ContralCharRegex.Replace(EscapeCodeRegex.Replace(RawMessage, string.Empty), string.Empty);
-                        ColorCodeFG = fgColor.ToArray();
-                        ColorCodeBG = bgColor.ToArray();
+                        Codes = codes.ToArray();
 
                         Parsed = true;
-                    }
-
-                    private static bool IsForcegroundColorCode(string code) {
-                        if (Fg3bitColorCode.IsMatch(code))
-                            return true;
-                        if (Fg8bitColorCode.IsMatch(code))
-                            return true;
-                        if (Fg24bitColorCode.IsMatch(code))
-                            return true;
-                        return false;
-                    }
-
-                    private static bool IsBackgroundColorCode(string code) {
-                        if (Bg3bitColorCode.IsMatch(code))
-                            return true;
-                        if (Bg8bitColorCode.IsMatch(code))
-                            return true;
-                        if (Bg24bitColorCode.IsMatch(code))
-                            return true;
-                        return false;
                     }
                 }
             }
