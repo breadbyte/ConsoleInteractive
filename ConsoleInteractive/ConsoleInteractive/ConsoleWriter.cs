@@ -15,9 +15,10 @@ namespace ConsoleInteractive {
 
         public static void Init() {
             SetWindowsConsoleAnsi();
-            if (!Console.IsOutputRedirected)
-                Console.Clear();
-            if (InDocker)
+            if (!Console.IsOutputRedirected && InternalContext.IsInteractiveConsole) {
+                try { Console.Clear(); } catch { }
+            }
+            if (InDocker || !InternalContext.IsInteractiveConsole)
                 BackendWriter = new FallbackWriter();
         }
 
@@ -59,12 +60,12 @@ namespace ConsoleInteractive {
         /// Gets the number of lines and the width of the first line of the message.
         /// </summary>
         private Tuple<int, int> GetLineCountInTerminal(string value) {
-            if (Console.IsOutputRedirected)
+            if (Console.IsOutputRedirected || !InternalContext.IsInteractiveConsole)
                 return new(0, 0);
 
             bool escape = false;
             int lineCnt = 0, cursorPos = 0, firstLineLength = -1;
-            int bufWidth = Console.BufferWidth;
+            int bufWidth = InternalContext.SafeBufferWidth;
             foreach (char c in value) {
                 if (!escape && c == '\u001B') {
                     escape = true;
@@ -130,17 +131,18 @@ namespace ConsoleInteractive {
             lock (InternalContext.WriteLock) {
                 ConsoleSuggestion.BeforeWrite(value, linesAdded);
 
-                if (!Console.IsOutputRedirected) {
-                    if (InternalContext.BufferInitialized)
-                        ConsoleBuffer.ClearVisibleUserInput(startPos: firstLineLength);
-                    else
-                        Console.CursorLeft = 0;
+                if (!Console.IsOutputRedirected && InternalContext.IsInteractiveConsole) {
+                    try {
+                        if (InternalContext.BufferInitialized)
+                            ConsoleBuffer.ClearVisibleUserInput(startPos: firstLineLength);
+                        else
+                            Console.CursorLeft = 0;
+                    } catch { }
                 }
 
                 WriteConsole(value, colors);
 
-                if (!Console.IsOutputRedirected) {
-                    // Only redraw if we have a buffer initialized.
+                if (!Console.IsOutputRedirected && InternalContext.IsInteractiveConsole) {
                     if (InternalContext.BufferInitialized)
                         ConsoleBuffer.RedrawInputArea(RedrawAll: true);
                 }
